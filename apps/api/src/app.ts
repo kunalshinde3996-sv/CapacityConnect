@@ -6,6 +6,7 @@ import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { subjectsRouter } from './modules/competency/subjects.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 
 // Builds the Express app without starting a server, so tests can import it
@@ -22,6 +23,7 @@ export function createApp() {
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/subjects', subjectsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
