@@ -1,4 +1,15 @@
-// Full schema is designed in step 2.
+// Capacity Connect - database schema
+//
+// Everything links back to ONE shared competency framework (the Competency table):
+// trainer claims, trainee levels, subject requirements, course targets,
+// library tags and assessment questions all point at Competency.
+//
+// Conventions:
+//   - ids are cuid strings; every table has createdAt, most have updatedAt
+//   - proficiency levels are Int 1-4 (1 Aware, 2 Working, 3 Proficient, 4 Expert);
+//     the 1-4 range is enforced with zod in the API
+//   - uploaded files are referenced by `fileKey` (a key inside the storage service),
+//     never by a public URL
 
 generator client {
   provider = "prisma-client"
@@ -7,4 +18,637 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  TRAINEE
+  TRAINER
+  ADMIN
+}
+
+// Lifecycle of a user account. Users are NEVER hard-deleted: an admin sets
+// DISABLED instead, so attempts, certificates and audit history are preserved.
+enum UserStatus {
+  PENDING // registered, waiting for admin approval
+  APPROVED // active, can log in
+  REJECTED // registration refused by an admin
+  DISABLED // deactivated by an admin (was approved before)
+}
+
+// Used for trainer applications
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Used for certificates and qualifications checked by an admin
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum CompetencyCategory {
+  DOMAIN
+  FUNCTIONAL
+  BEHAVIOURAL
+}
+
+// Where a trainer's competency claim comes from. Drives the trust factor in matching:
+// CERTIFICATE / QUALIFICATION (only when verified) = 1.0, EXPERIENCE / TEACHING = 0.8,
+// SELF_DECLARED (or unverified certificate/qualification) = 0.5
+enum EvidenceType {
+  CERTIFICATE
+  QUALIFICATION
+  EXPERIENCE
+  TEACHING
+  SELF_DECLARED
+}
+
+// How a trainee's competency level was determined
+enum CompetencySource {
+  SELF_ASSESSED
+  ASSESSMENT
+  COURSE_COMPLETION
+  ADMIN_ASSIGNED
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  COMPLETED
+  DROPPED
+}
+
+enum LibraryItemType {
+  VIDEO
+  SLIDES
+  DOCUMENT
+}
+
+enum AnnouncementType {
+  NOTICE
+  ACHIEVEMENT
+  NEW_CONTENT
+}
+
+// ─────────────────────────────────────────────────────────────
+// Organisation and users
+// ─────────────────────────────────────────────────────────────
+
+// MoES institute or station (IMD Pune, INCOIS Hyderabad, NCPOR Goa...).
+// Lets admin dashboards filter the skill-gap view by institute.
+model Institute {
+  id        String   @id @default(cuid())
+  code      String   @unique // short code, e.g. "IMD-PUNE"
+  name      String
+  city      String
+  createdAt DateTime @default(now())
+
+  users   User[]
+  courses Course[]
+}
+
+// Users are never deleted (see UserStatus.DISABLED). Relations that hold history
+// use onDelete: Restrict, so the database itself refuses a user delete.
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  designation  String? // job title, e.g. "Scientist-C"
+  role         Role       @default(TRAINEE)
+  status       UserStatus @default(PENDING) // only APPROVED users can log in
+  instituteId  String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  institute Institute? @relation(fields: [instituteId], references: [id], onDelete: SetNull)
+
+  // Profiles (at most one of each; a user normally has the one matching their role)
+  traineeProfile TraineeProfile?
+  trainerProfile TrainerProfile?
+
+  // Evidence shared by trainees and trainers
+  qualifications Qualification[]
+  experiences    Experience[]
+  certificates   Certificate[]   @relation("CertificateOwner")
+
+  // Competencies
+  trainerCompetencies TrainerCompetency[] @relation("TrainerClaims")
+  userCompetencies    UserCompetency[]
+
+  trainerApplications TrainerApplication[] @relation("Applicant")
+
+  // Learning activity
+  enrollments   Enrollment[]
+  attempts      AssessmentAttempt[]
+  feedback      Feedback[]
+  notifications Notification[]
+
+  // Things this user created or runs
+  coursesTeaching    Course[]       @relation("CourseTrainer")
+  coursesCreated     Course[]       @relation("CourseCreator")
+  libraryItems       LibraryItem[]
+  assessmentsCreated Assessment[]
+  announcements      Announcement[]
+
+  // Admin review actions (who verified / approved what)
+  certificatesVerified   Certificate[]        @relation("CertificateVerifier")
+  qualificationsVerified Qualification[]      @relation("QualificationVerifier")
+  claimsVerified         TrainerCompetency[]  @relation("ClaimVerifier")
+  applicationsReviewed   TrainerApplication[] @relation("ApplicationReviewer")
+  auditLogs              AuditLog[]
+
+  refreshTokens RefreshToken[]
+
+  @@index([status])
+  @@index([role])
+  @@index([instituteId])
+}
+
+// Stored as a SHA-256 hash, never the raw token. One row per login session,
+// so logout (or a detected reuse) can revoke it. Rotated on every refresh.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TraineeProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  employeeId String?
+  bio        String?
+  interests  String[] // free-text interest tags, e.g. ["monsoon forecasting", "GIS"]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TrainerProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  headline          String? // one line, e.g. "Radar meteorologist, 12 yrs at IMD"
+  bio               String?
+  yearsOfExperience Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Qualification {
+  id              String             @id @default(cuid())
+  userId          String
+  degree          String // e.g. "M.Sc."
+  fieldOfStudy    String // e.g. "Atmospheric Physics"
+  institution     String
+  yearCompleted   Int?
+  fileKey         String? // optional uploaded proof (degree certificate)
+  status          VerificationStatus @default(PENDING)
+  verifiedById    String?
+  verifiedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+
+  user       User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  verifiedBy User?               @relation("QualificationVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  claims     TrainerCompetency[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Experience {
+  id           String    @id @default(cuid())
+  userId       String
+  organisation String
+  title        String
+  startDate    DateTime
+  endDate      DateTime? // null = current role
+  description  String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+}
+
+// External certificates uploaded by users (verified by an admin), and certificates
+// issued by Capacity Connect on course completion (courseId set, auto-verified).
+model Certificate {
+  id              String             @id @default(cuid())
+  userId          String
+  title           String
+  issuer          String
+  issuedOn        DateTime?
+  expiresOn       DateTime?
+  fileKey         String?
+  courseId        String? // set when issued by this platform for completing a course
+  status          VerificationStatus @default(PENDING)
+  verifiedById    String?
+  verifiedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+
+  user       User                @relation("CertificateOwner", fields: [userId], references: [id], onDelete: Restrict)
+  verifiedBy User?               @relation("CertificateVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  course     Course?             @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  claims     TrainerCompetency[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([courseId])
+}
+
+// A trainee asking to become a trainer. Approval changes User.role to TRAINER.
+model TrainerApplication {
+  id           String         @id @default(cuid())
+  userId       String
+  motivation   String
+  status       ApprovalStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime       @default(now())
+
+  user       User  @relation("Applicant", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Competency framework (the core of the USP)
+// ─────────────────────────────────────────────────────────────
+
+model Competency {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  category    CompetencyCategory
+  description String
+  isActive    Boolean            @default(true) // retire instead of delete, so history stays valid
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  subjectRequirements SubjectRequirement[]
+  trainerCompetencies TrainerCompetency[]
+  userCompetencies    UserCompetency[]
+  courseCompetencies  CourseCompetency[]
+  libraryItems        LibraryItemCompetency[]
+  questions           Question[]
+
+  @@index([category])
+}
+
+// A teachable subject, e.g. "Doppler Weather Radar Operations".
+// Its requirements are what trainer matching scores against.
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requirements SubjectRequirement[]
+  courses      Course[]
+}
+
+// "To teach this subject you need competency X at level >= minLevel; it matters this much."
+// Weights of one subject's requirements sum to 1.0 (checked by the API, not the DB).
+model SubjectRequirement {
+  id           String  @id @default(cuid())
+  subjectId    String
+  competencyId String
+  minLevel     Int
+  weight       Decimal @db.Decimal(4, 3) // exact decimal (0.000-9.999) so weights add up without float drift
+
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@unique([subjectId, competencyId])
+}
+
+// A trainer's claim: "I am at level N in competency X, and here is my evidence."
+// One claim per competency per trainer; improving evidence updates the claim.
+model TrainerCompetency {
+  id              String       @id @default(cuid())
+  userId          String
+  competencyId    String
+  level           Int
+  evidenceType    EvidenceType
+  verified        Boolean      @default(false) // set by an admin after checking the evidence
+  evidenceNote    String? // e.g. "Ran DWR Mumbai 2019-2023"
+  evidenceFileKey String?
+  certificateId   String? // optional link to the Certificate that backs this claim
+  qualificationId String? // optional link to the Qualification that backs this claim
+  verifiedById    String?
+  verifiedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user          User           @relation("TrainerClaims", fields: [userId], references: [id], onDelete: Restrict)
+  competency    Competency     @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+  certificate   Certificate?   @relation(fields: [certificateId], references: [id], onDelete: SetNull)
+  qualification Qualification? @relation(fields: [qualificationId], references: [id], onDelete: SetNull)
+  verifiedBy    User?          @relation("ClaimVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, competencyId])
+  @@index([competencyId])
+}
+
+// A trainee's current level in a competency and how we know it.
+// Updated by assessments / course completion; feeds the organisation skill-gap view.
+model UserCompetency {
+  id           String           @id @default(cuid())
+  userId       String
+  competencyId String
+  level        Int
+  source       CompetencySource
+  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime         @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, competencyId])
+  @@index([competencyId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Courses and learning
+// ─────────────────────────────────────────────────────────────
+
+model Course {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  status      CourseStatus @default(DRAFT)
+  subjectId   String? // lets an admin "find a trainer" for this course via its subject
+  instituteId String? // hosting institute
+  trainerId   String? // assigned trainer
+  createdById String
+  startDate   DateTime?
+  endDate     DateTime?
+  capacity    Int?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  subject   Subject?   @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  institute Institute? @relation(fields: [instituteId], references: [id], onDelete: SetNull)
+  trainer   User?      @relation("CourseTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+  createdBy User       @relation("CourseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  modules      CourseModule[]
+  competencies CourseCompetency[]
+  enrollments  Enrollment[]
+  assessments  Assessment[]
+  libraryItems LibraryItem[]
+  feedback     Feedback[]
+  certificates Certificate[]
+
+  @@index([status])
+  @@index([trainerId])
+  @@index([subjectId])
+}
+
+model CourseModule {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  description String?
+  order       Int
+  createdAt   DateTime @default(now())
+
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  libraryItems LibraryItem[]
+
+  @@unique([courseId, order])
+}
+
+// Which competencies a course develops, and to what level.
+model CourseCompetency {
+  courseId     String
+  competencyId String
+  targetLevel  Int
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@id([courseId, competencyId])
+}
+
+model Enrollment {
+  id          String           @id @default(cuid())
+  userId      String
+  courseId    String
+  status      EnrollmentStatus @default(ENROLLED)
+  enrolledAt  DateTime         @default(now())
+  completedAt DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+// Trainer-uploaded lecture video, slides or notes. Either a stored file (fileKey)
+// or an external link (externalUrl, e.g. a YouTube lecture) - never both.
+model LibraryItem {
+  id           String          @id @default(cuid())
+  title        String
+  description  String?
+  type         LibraryItemType
+  fileKey      String?
+  mimeType     String?
+  sizeBytes    Int?
+  externalUrl  String?
+  isPublished  Boolean         @default(true)
+  uploadedById String
+  courseId     String? // optional: attach to a course...
+  moduleId     String? // ...or to a specific module of it
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  uploadedBy   User                    @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  course       Course?                 @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  module       CourseModule?           @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  competencies LibraryItemCompetency[]
+
+  @@index([type])
+  @@index([courseId])
+}
+
+// Competency tags on library items (many-to-many join table).
+model LibraryItemCompetency {
+  libraryItemId String
+  competencyId  String
+
+  libraryItem LibraryItem @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
+  competency  Competency  @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@id([libraryItemId, competencyId])
+  @@index([competencyId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Assessments
+// ─────────────────────────────────────────────────────────────
+
+model Assessment {
+  id              String   @id @default(cuid())
+  courseId        String
+  title           String
+  description     String?
+  deadline        DateTime // attempts after this are rejected
+  durationMinutes Int? // optional time limit once started
+  passPercent     Int      @default(50)
+  published       Boolean  @default(false) // trainees only see published assessments
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course    Course              @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  createdBy User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  questions Question[]
+  attempts  AssessmentAttempt[]
+
+  @@index([courseId])
+  @@index([deadline])
+}
+
+// Every question is tagged with ONE competency, so results can be reported
+// per competency ("strong in Nowcasting, weak in Radar Calibration").
+model Question {
+  id              String   @id @default(cuid())
+  assessmentId    String
+  competencyId    String
+  text            String
+  // JSONB array: [{ "id": "a", "text": "..." }, { "id": "b", "text": "..." }, ...]
+  options         Json
+  // id of the correct option. NEVER sent to trainees before they submit.
+  correctOptionId String
+  marks           Int      @default(1)
+  order           Int
+  explanation     String? // shown after submission
+  createdAt       DateTime @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@unique([assessmentId, order])
+  @@index([competencyId])
+}
+
+// One attempt per trainee per assessment (kept simple for the prototype).
+model AssessmentAttempt {
+  id                String    @id @default(cuid())
+  assessmentId      String
+  userId            String
+  startedAt         DateTime  @default(now())
+  submittedAt       DateTime? // null = in progress
+  score             Int? // marks obtained, filled on submit
+  maxScore          Int?
+  // JSONB array, one entry per question, filled on submit:
+  // [{ "questionId", "competencyId", "selectedOptionId", "correct": true, "marks": 1 }]
+  answers           Json?
+  // JSONB per-competency summary computed on submit:
+  // [{ "competencyId", "correct": 3, "total": 4, "percent": 75 }]
+  competencyResults Json?
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([assessmentId, userId])
+  @@index([userId])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  courseId  String
+  userId    String
+  rating    Int // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([courseId, userId]) // one feedback per trainee per course
+}
+
+// ─────────────────────────────────────────────────────────────
+// Communication and audit
+// ─────────────────────────────────────────────────────────────
+
+// Public homepage items published by an admin.
+model Announcement {
+  id          String           @id @default(cuid())
+  type        AnnouncementType
+  title       String
+  body        String
+  linkUrl     String?
+  published   Boolean          @default(false)
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([published, publishedAt])
+}
+
+// Private in-app message to one user (also emailed where relevant).
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  link      String? // in-app path to open, e.g. /assessments/abc
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+// Append-only record of important actions: approvals, role changes, verifications...
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String? // null = system action
+  action     String // e.g. "USER_APPROVED", "ROLE_CHANGED", "CLAIM_VERIFIED"
+  entityType String // e.g. "User"
+  entityId   String
+  metadata   Json? // e.g. { "from": "TRAINEE", "to": "TRAINER" }
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
