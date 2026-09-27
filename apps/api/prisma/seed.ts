@@ -14,6 +14,7 @@ import { type CompetencySource, PrismaClient, type UserStatus } from '../src/gen
 import { validateRequirements } from '../src/services/matching/matching.js';
 import {
   competencies,
+  courses,
   DEMO_PASSWORD,
   documentFiles,
   institutes,
@@ -271,6 +272,9 @@ async function main() {
     if (extra) await seedTraineeExtra(user.id, admin.id, extra);
   }
 
+  // ── Courses and enrolments ────────────────────────────────
+  await seedCourses(competencyId);
+
   // ── Summary ───────────────────────────────────────────────
   const counts = {
     institutes: await prisma.institute.count(),
@@ -280,6 +284,8 @@ async function main() {
     trainees: await prisma.user.count({ where: { role: 'TRAINEE' } }),
     pending: await prisma.user.count({ where: { status: 'PENDING' } }),
     claims: await prisma.trainerCompetency.count(),
+    courses: await prisma.course.count(),
+    enrolments: await prisma.enrollment.count(),
   };
 
   console.log(`\nSeed complete in ${((Date.now() - started) / 1000).toFixed(1)}s`);
@@ -295,6 +301,84 @@ async function main() {
       .map((t) => ({ role: 'TRAINEE', name: t.name, email: t.email, status: 'PENDING (cannot log in yet)' })),
   ]);
   console.log('(Other trainees follow the same email pattern: firstname.lastname@<institute>.example)\n');
+}
+
+// Demo trainee for the end-to-end journey: enrolled in the radar and cyber courses,
+// and deliberately NOT in the ocean course, so "browse and enrol" can be shown.
+const JOURNEY_TRAINEE = 'aditya.sharma@imd.example';
+const JOURNEY_ENROLLED = ['DWR Operations for Forecasters', 'Cyber Hygiene for Observing Networks'];
+
+async function seedCourses(competencyId: (name: string) => string) {
+  const random = seededRandom(77);
+  const trainees = await prisma.user.findMany({
+    where: { role: 'TRAINEE', status: 'APPROVED', email: { endsWith: '.example' } },
+    orderBy: { email: 'asc' },
+    select: { id: true, email: true },
+  });
+  const courseIds = new Map<string, string>();
+
+  for (const c of courses) {
+    const trainer = await prisma.user.findUniqueOrThrow({ where: { email: c.trainerEmail } });
+    const subject = c.subject ? await prisma.subject.findUniqueOrThrow({ where: { name: c.subject }, include: { requirements: true } }) : null;
+    const data = {
+      title: c.title,
+      description: c.description,
+      status: c.status,
+      subjectId: subject?.id ?? null,
+      trainerId: trainer.id,
+      createdById: trainer.id,
+      instituteId: trainer.instituteId,
+      startDate: new Date(c.start),
+      endDate: new Date(c.end),
+      capacity: c.capacity,
+    };
+    const existing = await prisma.course.findFirst({ where: { title: c.title } });
+    const course = existing
+      ? await prisma.course.update({ where: { id: existing.id }, data })
+      : await prisma.course.create({ data });
+    courseIds.set(c.title, course.id);
+
+    // Modules are matched on their position, so re-seeding keeps their ids (library items link to them).
+    for (const [index, [title, description]] of c.modules.entries()) {
+      await prisma.courseModule.upsert({
+        where: { courseId_order: { courseId: course.id, order: index + 1 } },
+        update: { title, description },
+        create: { courseId: course.id, order: index + 1, title, description },
+      });
+    }
+    await prisma.courseModule.deleteMany({ where: { courseId: course.id, order: { gt: c.modules.length } } });
+
+    const tags: [string, number][] = subject
+      ? subject.requirements.map((r) => [r.competencyId, r.minLevel])
+      : (c.extraCompetencies ?? []).map(([name, level]) => [competencyId(name), level]);
+    await prisma.courseCompetency.deleteMany({ where: { courseId: course.id, competencyId: { notIn: tags.map(([id]) => id) } } });
+    for (const [id, targetLevel] of tags) {
+      await prisma.courseCompetency.upsert({
+        where: { courseId_competencyId: { courseId: course.id, competencyId: id } },
+        update: { targetLevel },
+        create: { courseId: course.id, competencyId: id, targetLevel },
+      });
+    }
+
+    // Deterministic enrolments: the same trainees every run.
+    const planned = new Set(
+      trainees
+        .filter((t) =>
+          t.email === JOURNEY_TRAINEE ? JOURNEY_ENROLLED.includes(c.title) : c.status === 'PUBLISHED' && random() < c.enrolFraction,
+        )
+        .map((t) => t.id),
+    );
+    // Reset demo enrolments to the plan (removes enrolments made during a demo).
+    await prisma.enrollment.deleteMany({ where: { courseId: course.id, userId: { in: trainees.map((t) => t.id) }, NOT: { userId: { in: [...planned] } } } });
+    for (const userId of planned) {
+      await prisma.enrollment.upsert({
+        where: { userId_courseId: { userId, courseId: course.id } },
+        update: { status: 'ENROLLED', completedAt: null },
+        create: { userId, courseId: course.id, enrolledAt: new Date(c.start) },
+      });
+    }
+  }
+  return courseIds;
 }
 
 // Certificates, qualifications, experience and a trainer application for one trainee.

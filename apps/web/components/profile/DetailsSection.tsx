@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Button, Card, Field, Input, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Profile } from '@/lib/profile';
-import { useSubmit } from './useSubmit';
+import { useSubmit } from '@/lib/useSubmit';
 
 export function DetailsSection({ profile, onSaved }: { profile: Profile; onSaved: () => void }) {
   const isTrainer = profile.role === 'TRAINER';

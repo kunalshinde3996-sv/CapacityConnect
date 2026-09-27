@@ -124,3 +124,15 @@ describe('GET /api/subjects', () => {
     expect(res.body.subjects[0].requirements.map((r: { weight: number }) => r.weight)).toEqual([0.6, 0.4]);
   });
 });
+
+describe('GET /api/subjects access', () => {
+  it('trainers can list subjects (for course creation) but trainees cannot', async () => {
+    await setupSubject();
+    const trainer = await createUser({ role: 'TRAINER' });
+    const trainee = await createUser({ role: 'TRAINEE' });
+    const t1 = await loginAs(trainer.email);
+    const t2 = await loginAs(trainee.email);
+    expect((await request(app).get('/api/subjects').set('Authorization', `Bearer ${t1.accessToken}`)).status).toBe(200);
+    expect((await request(app).get('/api/subjects').set('Authorization', `Bearer ${t2.accessToken}`)).status).toBe(403);
+  });
+});

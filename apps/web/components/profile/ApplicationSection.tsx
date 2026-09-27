@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, Field, formatDate, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Profile } from '@/lib/profile';
-import { useSubmit } from './useSubmit';
+import { useSubmit } from '@/lib/useSubmit';
 
 // "Become a trainer": a trainee applies, an admin reviews. Approval changes the role.
 export function ApplicationSection({ profile, onChanged }: { profile: Profile; onChanged: () => void }) {

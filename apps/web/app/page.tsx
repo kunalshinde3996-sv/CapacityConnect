@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button, Spinner } from '@/components/ui';
-import { useAuth } from '@/lib/auth';
+import { homeFor, useAuth } from '@/lib/auth';
 
 export default function HomePage() {
   const { state, logout } = useAuth();
@@ -29,13 +29,9 @@ export default function HomePage() {
               Signed in as <span className="font-semibold text-slate-900">{state.user.fullName}</span> ({state.user.role.toLowerCase()})
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {state.user.role === 'ADMIN' ? (
-                <Link href="/admin/approvals" className="inline-flex min-h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">
-                  Open admin console
-                </Link>
-              ) : (
-                <p className="text-sm text-slate-500">Trainee and trainer dashboards arrive in the next phase.</p>
-              )}
+              <Link href={homeFor(state.user)} className="inline-flex min-h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">
+                {state.user.role === 'ADMIN' ? 'Open admin console' : 'Continue'}
+              </Link>
               <Button variant="secondary" onClick={logout}>
                 Sign out
               </Button>

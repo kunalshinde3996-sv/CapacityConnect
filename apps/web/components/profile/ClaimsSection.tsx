@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, LEVEL_NAMES, Select } from '@/components/ui';
 import { api, apiUpload, openFile } from '@/lib/api';
 import { type Claim, claimStatus, type Competency, EVIDENCE_LABELS, type EvidenceType, type Profile } from '@/lib/profile';
-import { useSubmit } from './useSubmit';
+import { useSubmit } from '@/lib/useSubmit';
 
 // A trainer's competency claims: what drives their fit score in trainer matching.
 export function ClaimsSection({ profile, competencies, onChanged }: { profile: Profile; competencies: Competency[]; onChanged: () => void }) {

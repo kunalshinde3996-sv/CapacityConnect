@@ -323,3 +323,137 @@ export const traineeExtras: Record<string, TraineeExtra> = {
       'After two Antarctic expeditions I have practical experience with AWS maintenance in extreme cold. I would like to train the next expedition batch on field instrument care.',
   },
 };
+
+// ── Courses (Phase 2) ──────────────────────────────────────
+// One published course per subject, taught by the trainer who ranks first for it,
+// plus one draft. Course competencies = the subject's requirements (target = min level).
+export interface SeedCourse {
+  title: string;
+  subject: string | null;
+  trainerEmail: string;
+  status: 'PUBLISHED' | 'DRAFT';
+  description: string;
+  start: string;
+  end: string;
+  capacity: number | null;
+  modules: [string, string][];
+  extraCompetencies?: [string, number][]; // for courses without a subject
+  enrolFraction: number; // share of approved trainees enrolled (deterministic)
+}
+
+export const courses: SeedCourse[] = [
+  {
+    title: 'DWR Operations for Forecasters',
+    subject: 'Doppler Weather Radar Operations',
+    trainerEmail: 'meera.kulkarni@imd.example',
+    status: 'PUBLISHED',
+    description:
+      'A practical course on operating Doppler Weather Radars and turning radar products into nowcasts for thunderstorms and heavy rain. For duty forecasters and radar technicians.',
+    start: '2026-09-01',
+    end: '2026-12-15',
+    capacity: 40,
+    modules: [
+      ['How a Doppler radar works', 'Beam, pulses, reflectivity and the Doppler shift'],
+      ['Scan strategies and products', 'Volume coverage patterns, PPI, CAPPI, Max-Z, VIL'],
+      ['Reading reflectivity and velocity', 'Hail cores, mesocyclones, outflow boundaries'],
+      ['From radar to nowcast', 'Extrapolation, growth and decay, impact-based warnings'],
+    ],
+    enrolFraction: 0.55,
+  },
+  {
+    title: 'Cyber Hygiene for Observing Networks',
+    subject: 'Cybersecurity Basics for Observing Networks',
+    trainerEmail: 'rahul.deshmukh@incois.example',
+    status: 'PUBLISHED',
+    description: 'Protect AWS loggers, radar links and data-centre servers from the most common cyber threats, and know what to do when something goes wrong.',
+    start: '2026-09-15',
+    end: '2026-11-30',
+    capacity: 60,
+    modules: [
+      ['Threats to observing networks', 'Phishing, default passwords, exposed services'],
+      ['Securing Linux servers', 'Updates, SSH keys, firewalls'],
+      ['Incident response basics', 'Detect, contain, report to CERT-In'],
+    ],
+    enrolFraction: 0.35,
+  },
+  {
+    title: 'Ocean Data Analysis with Python',
+    subject: 'Ocean Data Analysis with Python',
+    trainerEmail: 'priya.nair@incois.example',
+    status: 'PUBLISHED',
+    description: 'Hands-on analysis of Argo float and buoy observations with Python, xarray and pandas, from raw profiles to publication-quality maps.',
+    start: '2026-10-01',
+    end: '2026-12-20',
+    capacity: 30,
+    modules: [
+      ['Python and xarray refresher', 'NetCDF, dimensions, selecting data'],
+      ['Working with Argo profiles', 'Quality flags, interpolation, mixed-layer depth'],
+      ['Maps and reports', 'Cartopy maps and writing up results'],
+    ],
+    enrolFraction: 0.3,
+  },
+  {
+    title: 'AWS Installation and Field Calibration',
+    subject: 'AWS Installation and Calibration',
+    trainerEmail: 'sanjay.iyer@imd.example',
+    status: 'PUBLISHED',
+    description: 'Site selection, installation, sensor calibration and routine maintenance of Automatic Weather Stations, with a field-team checklist.',
+    start: '2026-08-01',
+    end: '2026-10-31',
+    capacity: 25,
+    modules: [
+      ['Site selection and installation', 'Exposure, mounting, power and communication'],
+      ['Sensor calibration', 'Temperature, humidity, pressure and rain gauge checks'],
+      ['Maintenance and data checks', 'Drift, gaps and field logs'],
+    ],
+    enrolFraction: 0.25,
+  },
+  {
+    title: 'Cyclone Warnings: From Guidance to Public Message',
+    subject: 'Tropical Cyclone Forecasting and Warning Communication',
+    trainerEmail: 'arjun.menon@imd.example',
+    status: 'PUBLISHED',
+    description: 'Combine satellite analysis and NWP guidance into track and intensity forecasts, then write clear, actionable cyclone warnings.',
+    start: '2026-10-15',
+    end: '2027-01-15',
+    capacity: null,
+    modules: [
+      ['Satellite analysis of cyclones', 'Dvorak technique and microwave imagery'],
+      ['Using NWP guidance', 'Ensembles, consensus and forecast uncertainty'],
+      ['Writing the warning', 'Impact-based language and communicating uncertainty'],
+    ],
+    enrolFraction: 0.3,
+  },
+  {
+    title: 'Tsunami Warning Centre Operations',
+    subject: 'Tsunami Early Warning Operations',
+    trainerEmail: 'kavita.rao@incois.example',
+    status: 'PUBLISHED',
+    description: 'How the Indian Tsunami Early Warning Centre goes from a seismic alert to coastal advisories, and how to coordinate with disaster managers.',
+    start: '2026-09-10',
+    end: '2026-11-10',
+    capacity: 20,
+    modules: [
+      ['From earthquake to scenario', 'Magnitude, location and the scenario database'],
+      ['Bulletins and threat levels', 'Warning, alert and watch zones'],
+      ['Working with NDMA and states', 'Communication chains and drills'],
+    ],
+    enrolFraction: 0.2,
+  },
+  {
+    title: 'Polar Field Safety and Logistics',
+    subject: null,
+    trainerEmail: 'anil.thomas@ncpor.example',
+    status: 'DRAFT',
+    description: 'Preparing for Antarctic and Arctic field seasons: safety, cold-weather equipment and team routines. Draft, not yet published.',
+    start: '2027-01-10',
+    end: '2027-03-10',
+    capacity: 15,
+    modules: [['Before you travel', 'Medical checks, kit list and training']],
+    extraCompetencies: [
+      ['Polar Field Operations', 3],
+      ['Team Leadership', 2],
+    ],
+    enrolFraction: 0,
+  },
+];

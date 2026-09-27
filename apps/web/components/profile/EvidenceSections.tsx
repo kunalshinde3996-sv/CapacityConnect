@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Alert, Button, Card, EmptyState, Field, formatDate, Input, VerificationBadge } from '@/components/ui';
 import { api, apiUpload, openFile } from '@/lib/api';
 import type { Profile } from '@/lib/profile';
-import { useSubmit } from './useSubmit';
+import { useSubmit } from '@/lib/useSubmit';
 
 const FILE_HINT = 'PDF, PNG or JPG';
 

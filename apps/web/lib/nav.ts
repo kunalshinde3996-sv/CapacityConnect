@@ -7,8 +7,16 @@ export interface NavItem {
 
 // Main navigation for each role. Admins use the separate admin console layout.
 export const NAV: Record<Exclude<Role, 'ADMIN'>, NavItem[]> = {
-  TRAINEE: [{ href: '/profile', label: 'Profile' }],
-  TRAINER: [{ href: '/profile', label: 'Profile & claims' }],
+  TRAINEE: [
+    { href: '/my-courses', label: 'My courses' },
+    { href: '/courses', label: 'Browse courses' },
+    { href: '/profile', label: 'Profile' },
+  ],
+  TRAINER: [
+    { href: '/trainer/courses', label: 'My teaching' },
+    { href: '/courses', label: 'Course catalogue' },
+    { href: '/profile', label: 'Profile & claims' },
+  ],
 };
 
 export const ADMIN_NAV: NavItem[] = [

@@ -2,15 +2,27 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Alert, Badge, levelLabel, PageHeader, Spinner } from '@/components/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Badge, Button, levelLabel, PageHeader, Select, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
+import type { CourseSummary } from '@/lib/courses';
 import { type BreakdownRow, evidenceLabel, pct, type Subject, type TrainerMatch } from '@/lib/matching';
 
 export default function TrainerMatchesPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<{ subject: Subject; matches: TrainerMatch[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // This subject's courses (any status), for "Assign to course"
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const showCourses = useCallback((d: { courses: CourseSummary[] }) => setCourses(d.courses), []);
+  const loadCourses = useCallback(
+    () => api<{ courses: CourseSummary[] }>(`/api/courses?subjectId=${id}&all=true`).then(showCourses),
+    [id, showCourses],
+  );
+
+  useEffect(() => {
+    api<{ courses: CourseSummary[] }>(`/api/courses?subjectId=${id}&all=true`).then(showCourses).catch(() => {});
+  }, [id, showCourses]);
 
   useEffect(() => {
     api<{ subject: Subject; matches: TrainerMatch[] }>(`/api/subjects/${id}/trainer-matches`)
@@ -44,7 +56,7 @@ export default function TrainerMatchesPage() {
           </h2>
           <ol className="space-y-3">
             {data.matches.map((match) => (
-              <TrainerCard key={match.trainer.id} match={match} />
+              <TrainerCard key={match.trainer.id} match={match} courses={courses} onAssigned={loadCourses} />
             ))}
           </ol>
         </>
@@ -94,7 +106,7 @@ function fitTone(match: TrainerMatch) {
   return 'bg-slate-400';
 }
 
-function TrainerCard({ match }: { match: TrainerMatch }) {
+function TrainerCard({ match, courses, onAssigned }: { match: TrainerMatch; courses: CourseSummary[]; onAssigned: () => Promise<unknown> }) {
   const { trainer } = match;
   return (
     <li className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
@@ -133,9 +145,16 @@ function TrainerCard({ match }: { match: TrainerMatch }) {
             ) : (
               <Badge tone="green">Covers all requirements</Badge>
             )}
+            {courses
+              .filter((c) => c.trainer?.id === trainer.id)
+              .map((c) => (
+                <Badge key={c.id} tone="brand">Teaches: {c.title}</Badge>
+              ))}
           </div>
         </div>
       </div>
+
+      {courses.length > 0 && <AssignToCourse trainerId={trainer.id} trainerName={trainer.fullName} courses={courses} onAssigned={onAssigned} />}
 
       <details className="border-t border-slate-100">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-brand-700 hover:bg-slate-50 sm:px-5">
@@ -194,5 +213,59 @@ function BreakdownItem({ row }: { row: BreakdownRow }) {
       )}
       {row.evidenceNote && <p className="mt-1 text-xs italic text-slate-500">“{row.evidenceNote}”</p>}
     </li>
+  );
+}
+
+// Lets the admin put this trainer in charge of one of the subject's courses.
+function AssignToCourse({
+  trainerId,
+  trainerName,
+  courses,
+  onAssigned,
+}: {
+  trainerId: string;
+  trainerName: string;
+  courses: CourseSummary[];
+  onAssigned: () => Promise<unknown>;
+}) {
+  const options = courses.filter((c) => c.trainer?.id !== trainerId);
+  const [courseId, setCourseId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'green' | 'red'; text: string } | null>(null);
+  if (options.length === 0) return null;
+
+  async function assign() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api(`/api/courses/${courseId}/trainer`, { method: 'PUT', body: { trainerId } });
+      const title = options.find((c) => c.id === courseId)?.title;
+      setMessage({ tone: 'green', text: `${trainerName} now teaches “${title}”.` });
+      setCourseId('');
+      await onAssigned();
+    } catch (err) {
+      setMessage({ tone: 'red', text: err instanceof ApiError ? err.message : 'Could not assign' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-slate-100 px-4 py-3 sm:px-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Select aria-label={`Assign ${trainerName} to a course`} value={courseId} onChange={(e) => setCourseId(e.target.value)} className="mt-0">
+          <option value="">Assign to a course…</option>
+          {options.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title} ({c.trainer ? `now ${c.trainer.fullName}` : 'no trainer'}, {c.status.toLowerCase()})
+            </option>
+          ))}
+        </Select>
+        <Button variant="secondary" disabled={!courseId || busy} onClick={assign} className="shrink-0">
+          {busy ? 'Assigning…' : 'Assign'}
+        </Button>
+      </div>
+      {message && <p className={`mt-2 text-sm ${message.tone === 'green' ? 'text-emerald-700' : 'text-red-700'}`}>{message.text}</p>}
+    </div>
   );
 }

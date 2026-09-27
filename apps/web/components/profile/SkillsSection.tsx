@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, EmptyState, LEVEL_NAMES, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Competency, Profile } from '@/lib/profile';
-import { useSubmit } from './useSubmit';
+import { useSubmit } from '@/lib/useSubmit';
 
 const CATEGORY_LABELS = { DOMAIN: 'Domain', FUNCTIONAL: 'Functional', BEHAVIOURAL: 'Behavioural' } as const;
 
