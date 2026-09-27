@@ -61,7 +61,8 @@ export function PageHeader({ title, description, children }: { title: string; de
         <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
         {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
       </div>
-      {children}
+      {/* self-start: badges and buttons keep their natural width on phones instead of stretching */}
+      {children && <div className="self-start sm:self-auto">{children}</div>}
     </div>
   );
 }
@@ -89,4 +90,61 @@ export function Toast({ tone, children, onClose }: { tone: Tone; children: React
       </div>
     </div>
   );
+}
+
+// ── Form building blocks ───────────────────────────────────
+
+const controlClass =
+  'mt-1 block w-full rounded-lg border-0 bg-white px-3 py-2.5 text-base ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-brand-600 sm:text-sm';
+
+export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-sm">
+      <span className="font-medium text-slate-700">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+    </label>
+  );
+}
+
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`${controlClass} ${props.className ?? ''}`} />;
+}
+
+export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea rows={3} {...props} className={`${controlClass} ${props.className ?? ''}`} />;
+}
+
+export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`${controlClass} ${props.className ?? ''}`} />;
+}
+
+export function Card({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function EmptyState({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">{children}</p>;
+}
+
+// Status of a certificate / qualification / claim, in plain words.
+export function VerificationBadge({ status }: { status: 'PENDING' | 'VERIFIED' | 'REJECTED' }) {
+  if (status === 'VERIFIED') return <Badge tone="green">Verified</Badge>;
+  if (status === 'REJECTED') return <Badge tone="red">Rejected</Badge>;
+  return <Badge tone="amber">Pending verification</Badge>;
+}
+
+export function formatDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 }

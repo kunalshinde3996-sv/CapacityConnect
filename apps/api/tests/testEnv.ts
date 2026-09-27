@@ -8,4 +8,6 @@ export const testEnv = {
   JWT_ACCESS_SECRET: 'test-access-secret-that-is-at-least-32-chars',
   CORS_ORIGINS: 'http://localhost:3000',
   BCRYPT_COST: '4', // fastest allowed; only for tests
+  UPLOAD_DIR: 'uploads-test', // wiped by tests; never the real upload folder
+  MAX_UPLOAD_MB: '1', // small, so the size-limit test is quick
 };

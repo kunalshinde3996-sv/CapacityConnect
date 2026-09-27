@@ -1,5 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
+import { env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
 
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
@@ -19,6 +21,18 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof z.ZodError) {
     res.status(400).json({
       error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: z.flattenError(err) },
+    });
+    return;
+  }
+
+  // Upload problems detected by multer while the file was still streaming in
+  if (err instanceof multer.MulterError) {
+    const tooBig = err.code === 'LIMIT_FILE_SIZE';
+    res.status(tooBig ? 413 : 400).json({
+      error: {
+        code: tooBig ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR',
+        message: tooBig ? `Files can be at most ${env.MAX_UPLOAD_MB} MB` : err.message,
+      },
     });
     return;
   }

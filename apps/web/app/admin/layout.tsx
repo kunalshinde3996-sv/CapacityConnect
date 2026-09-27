@@ -5,11 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Button, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-
-const NAV = [
-  { href: '/admin/approvals', label: 'Approvals' },
-  { href: '/admin/subjects', label: 'Trainer matching' },
-];
+import { ADMIN_NAV as NAV } from '@/lib/nav';
 
 // Client-side guard for a nicer experience only. The API enforces ADMIN on every
 // admin route, so hiding pages here is not what keeps data safe.
@@ -49,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/" className="font-bold text-brand-900">
             Capacity Connect <span className="font-normal text-slate-500">Admin</span>
           </Link>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-3 text-sm sm:order-last">
             <span className="hidden text-slate-600 sm:inline">{state.user.fullName}</span>
             <Button
               variant="secondary"
@@ -62,8 +58,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Sign out
             </Button>
           </div>
-          {/* Scrolls sideways on very narrow screens instead of wrapping awkwardly */}
-          <nav className="-mx-4 flex w-full gap-1 overflow-x-auto px-4 sm:mx-0 sm:w-auto sm:px-0" aria-label="Admin">
+          {/* Phones: its own scrollable row under the logo. Desktop: between logo and Sign out. */}
+          <nav className="order-last -mx-4 flex w-full gap-1 overflow-x-auto px-4 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:px-0" aria-label="Admin">
             {NAV.map((item) => {
               const active = pathname.startsWith(item.href);
               return (

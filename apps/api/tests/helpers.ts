@@ -67,3 +67,14 @@ export function getSetCookie(res: request.Response): string[] {
 export function cookiePair(setCookie: string[]) {
   return setCookie.map((c) => c.split(';')[0]).join('; ');
 }
+
+// ── File fixtures for upload tests ─────────────────────────
+// Just enough bytes to pass (or deliberately fail) the content checks.
+export const files = {
+  pdf: Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n'),
+  png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]),
+  // A Windows program ("MZ" header) renamed to .pdf must be rejected
+  fakePdf: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(200)]),
+};
+
+export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });

@@ -1,2 +1,11 @@
 # Store text files with LF endings so scripts work on Linux hosts
 * text=auto eol=lf
+
+# Never touch line endings in binary files (demo certificates, slides, videos)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp4 binary
+*.docx binary
+*.pptx binary

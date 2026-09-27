@@ -14,6 +14,9 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   // bcrypt work factor. 10 in real use; tests lower it to 4 so they run fast.
   BCRYPT_COST: z.coerce.number().int().min(4).max(14).default(10),
+  // Folder for uploaded files (local-disk storage) and the maximum upload size.
+  UPLOAD_DIR: z.string().default('uploads'),
+  MAX_UPLOAD_MB: z.coerce.number().positive().max(500).default(50),
 });
 
 const parsed = envSchema.safeParse(process.env);

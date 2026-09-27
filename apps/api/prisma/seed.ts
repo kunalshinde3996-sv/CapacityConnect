@@ -15,14 +15,20 @@ import { validateRequirements } from '../src/services/matching/matching.js';
 import {
   competencies,
   DEMO_PASSWORD,
+  documentFiles,
   institutes,
   interestPool,
   PENDING_TRAINEE_COUNT,
   subjects,
   traineeDesignations,
   traineeNames,
+  traineeExtras,
   trainers,
 } from './seed-data.js';
+
+// Demo files live in apps/api/demo-files; the API copies them into storage at startup
+// (src/modules/storage/demoFiles.ts). The seed only records their storage keys.
+const demoFileKey = (fileName: string | undefined) => (fileName ? `demo/${fileName}` : null);
 
 // Variables already set in the shell win over .env, so a hosted DATABASE_URL
 // passed on the command line is the one used.
@@ -173,6 +179,7 @@ async function main() {
           title: claim.document.title,
           issuer: claim.document.issuer,
           issuedOn: new Date(`${claim.document.year}-06-01`),
+          fileKey: demoFileKey(documentFiles[claim.document.title]),
           status: verified ? ('VERIFIED' as const) : ('PENDING' as const),
           ...review,
         };
@@ -190,6 +197,7 @@ async function main() {
           fieldOfStudy: field.join(' '),
           institution: claim.document.issuer,
           yearCompleted: claim.document.year,
+          fileKey: demoFileKey(documentFiles[claim.document.title]),
           status: verified ? ('VERIFIED' as const) : ('PENDING' as const),
           ...review,
         };
@@ -258,6 +266,9 @@ async function main() {
         });
       }
     }
+
+    const extra = traineeExtras[name];
+    if (extra) await seedTraineeExtra(user.id, admin.id, extra);
   }
 
   // ── Summary ───────────────────────────────────────────────
@@ -284,6 +295,47 @@ async function main() {
       .map((t) => ({ role: 'TRAINEE', name: t.name, email: t.email, status: 'PENDING (cannot log in yet)' })),
   ]);
   console.log('(Other trainees follow the same email pattern: firstname.lastname@<institute>.example)\n');
+}
+
+// Certificates, qualifications, experience and a trainer application for one trainee.
+async function seedTraineeExtra(userId: string, adminId: string, extra: (typeof traineeExtras)[string]) {
+  for (const c of extra.certificates ?? []) {
+    const verified = c.status === 'VERIFIED';
+    const data = {
+      userId,
+      title: c.title,
+      issuer: c.issuer,
+      issuedOn: new Date(`${c.year}-03-15`),
+      fileKey: demoFileKey(c.file),
+      status: c.status,
+      verifiedById: verified ? adminId : null,
+      verifiedAt: verified ? new Date() : null,
+      rejectionReason: null,
+    };
+    const existing = await prisma.certificate.findFirst({ where: { userId, title: c.title } });
+    if (existing) await prisma.certificate.update({ where: { id: existing.id }, data });
+    else await prisma.certificate.create({ data });
+  }
+
+  for (const q of extra.qualifications ?? []) {
+    const data = { userId, degree: q.degree, fieldOfStudy: q.fieldOfStudy, institution: q.institution, yearCompleted: q.year };
+    const existing = await prisma.qualification.findFirst({ where: { userId, degree: q.degree, fieldOfStudy: q.fieldOfStudy } });
+    if (existing) await prisma.qualification.update({ where: { id: existing.id }, data: { ...data, status: 'PENDING' } });
+    else await prisma.qualification.create({ data });
+  }
+
+  for (const x of extra.experiences ?? []) {
+    const data = { userId, organisation: x.organisation, title: x.title, startDate: new Date(x.from), endDate: x.to ? new Date(x.to) : null, description: x.description ?? null };
+    const existing = await prisma.experience.findFirst({ where: { userId, organisation: x.organisation, title: x.title } });
+    if (existing) await prisma.experience.update({ where: { id: existing.id }, data });
+    else await prisma.experience.create({ data });
+  }
+
+  if (extra.application) {
+    // Reset to one PENDING application, so the admin queue is ready for a demo.
+    await prisma.trainerApplication.deleteMany({ where: { userId } });
+    await prisma.trainerApplication.create({ data: { userId, motivation: extra.application } });
+  }
 }
 
 async function upsertUser(u: {

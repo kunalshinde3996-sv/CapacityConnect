@@ -57,5 +57,5 @@ export function useAuth() {
 
 // Where each role lands after login.
 export function homeFor(user: User) {
-  return user.role === 'ADMIN' ? '/admin/approvals' : '/';
+  return user.role === 'ADMIN' ? '/admin/approvals' : '/profile';
 }

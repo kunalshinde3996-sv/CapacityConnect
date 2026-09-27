@@ -275,3 +275,51 @@ export const interestPool = [
   'monsoon forecasting', 'radar products', 'ocean observations', 'climate change', 'Python', 'GIS',
   'cyber security', 'field instruments', 'cyclones', 'tsunami warnings', 'polar science', 'data visualisation',
 ];
+
+// Demo file (in apps/api/demo-files) behind each seeded certificate / qualification.
+export const documentFiles: Record<string, string> = {
+  'Advanced Weather Radar Meteorology': 'cert-meera-wmo-radar.pdf',
+  'M.Tech Atmospheric Science': 'qual-arjun-mtech.pdf',
+  'PhD Physical Oceanography': 'qual-priya-phd.pdf',
+  'Scientific Computing with Python': 'cert-priya-nptel-python.pdf',
+  'Certified Information Systems Security Professional (CISSP)': 'cert-rahul-cissp.pdf',
+  'Cyber Incident Handling and Response': 'cert-rahul-certin.pdf',
+  'Network Security Fundamentals': 'cert-sanjay-nielit.pdf',
+  'M.Sc Marine Sciences': 'qual-kavita-msc.pdf',
+  'M.Sc Climate Science': 'qual-anil-msc.pdf',
+  'Remote Sensing and GIS Applications': 'cert-neha-iirs.pdf',
+  'Satellite Meteorology Basics': 'cert-neha-eumetsat.png',
+};
+
+// Richer profiles for a few trainees, so the profile page, the admin verification queue
+// and the trainer-application queue all have realistic data.
+export interface TraineeExtra {
+  certificates?: { title: string; issuer: string; year: number; file: string; status: 'PENDING' | 'VERIFIED' }[];
+  qualifications?: { degree: string; fieldOfStudy: string; institution: string; year: number }[];
+  experiences?: { organisation: string; title: string; from: string; to?: string; description?: string }[];
+  application?: string; // motivation of a PENDING "become a trainer" application
+}
+
+export const traineeExtras: Record<string, TraineeExtra> = {
+  'Aditya Sharma': {
+    certificates: [{ title: 'Python for Earth Sciences', issuer: 'NPTEL (IIT Kharagpur)', year: 2025, file: 'cert-aditya-nptel.pdf', status: 'PENDING' }],
+    qualifications: [{ degree: 'B.Sc.', fieldOfStudy: 'Physics', institution: 'Fergusson College, Pune', year: 2019 }],
+    experiences: [{ organisation: 'IMD Pune', title: 'Scientific Assistant', from: '2020-08-01', description: 'Upper-air observations and data entry' }],
+    application:
+      'I have written the Python scripts our unit uses to quality-check radiosonde data and I regularly help new colleagues with them. I would like to run a short course on Python for observers.',
+  },
+  'Ananya Iyer': {
+    certificates: [{ title: 'GIS Fundamentals', issuer: 'IIRS Dehradun', year: 2025, file: 'cert-ananya-iirs.png', status: 'PENDING' }],
+    qualifications: [{ degree: 'M.Sc.', fieldOfStudy: 'Oceanography', institution: 'Andhra University', year: 2021 }],
+    experiences: [{ organisation: 'INCOIS Hyderabad', title: 'Project Associate', from: '2021-09-01', description: 'Potential Fishing Zone advisories' }],
+  },
+  'Rohan Patil': {
+    certificates: [{ title: 'Basic Meteorology for Observers', issuer: 'IMD Meteorological Training Institute', year: 2023, file: 'cert-rohan-imd-mti.pdf', status: 'VERIFIED' }],
+    experiences: [
+      { organisation: 'NCPOR Goa', title: 'Field Assistant', from: '2019-11-01', to: '2022-03-31', description: 'Antarctic expedition support, Maitri station' },
+      { organisation: 'NCPOR Goa', title: 'Technical Officer', from: '2022-04-01' },
+    ],
+    application:
+      'After two Antarctic expeditions I have practical experience with AWS maintenance in extreme cold. I would like to train the next expedition batch on field instrument care.',
+  },
+};

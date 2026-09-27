@@ -32,3 +32,4 @@ Thumbs.db
 
 # Prisma generated client
 apps/api/src/generated/
+uploads-test/
