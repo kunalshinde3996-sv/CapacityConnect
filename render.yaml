@@ -1,0 +1,27 @@
+# Render Blueprint for the Express API (free plan).
+# In Render: New -> Blueprint -> pick this repo. Then fill in the variables marked sync: false.
+# The web app is deployed separately on Vercel; the database is Neon (see README "Deployment").
+services:
+  - type: web
+    name: capacity-connect-api
+    runtime: node
+    plan: free
+    region: singapore # closest Render region to India
+    # --include=dev: Render sets NODE_ENV=production during the build too, which would skip
+    # devDependencies, but the build needs TypeScript and the Prisma CLI.
+    buildCommand: npm ci --include=dev && npm run build -w apps/api
+    # Apply any new migrations, then start. (Free plan has no separate pre-deploy step.)
+    startCommand: npm run db:deploy -w apps/api && npm run start -w apps/api
+    healthCheckPath: /api/health
+    autoDeploy: true # redeploy on every push to main
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL # Neon connection string (direct, not "-pooler"), with sslmode=require
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true # Render creates a long random value
+      - key: CORS_ORIGINS # your Vercel URL, e.g. https://capacity-connect.vercel.app
+        sync: false

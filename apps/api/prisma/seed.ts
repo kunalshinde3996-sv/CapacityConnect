@@ -24,16 +24,37 @@ import {
   trainers,
 } from './seed-data.js';
 
+// Variables already set in the shell win over .env, so a hosted DATABASE_URL
+// passed on the command line is the one used.
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PROD !== 'true') {
-  console.error('Refusing to seed with NODE_ENV=production. Set SEED_ALLOW_PROD=true if you really mean it.');
-  process.exit(1);
-}
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is not set.');
   process.exit(1);
 }
+
+// A database that is not on this machine is treated as a real (hosted) one. We check the
+// host rather than NODE_ENV, because the hosted seed is usually run from a laptop.
+const dbHost = new URL(process.env.DATABASE_URL).hostname;
+const isRemote = !['localhost', '127.0.0.1', '::1', 'db'].includes(dbHost);
+
+if (isRemote && process.env.SEED_ALLOW_PROD !== 'true') {
+  console.error(`Refusing to seed the remote database at ${dbHost}. Set SEED_ALLOW_PROD=true if you really mean it.`);
+  process.exit(1);
+}
+
+// The public demo password (in the README) is only allowed locally. A live site gets
+// its own password, so nobody reading the repo can sign in as admin there.
+function chooseDemoPassword(): string {
+  if (!isRemote) return DEMO_PASSWORD;
+  const secret = process.env.SEED_DEMO_PASSWORD;
+  if (!secret || secret.length < 12 || secret === DEMO_PASSWORD) {
+    console.error('Seeding a remote database needs SEED_DEMO_PASSWORD (12+ characters, not the public demo password).');
+    process.exit(1);
+  }
+  return secret;
+}
+const demoPassword = chooseDemoPassword();
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 
@@ -60,7 +81,7 @@ async function main() {
   const started = Date.now();
   // One hash reused for every demo account: all share the demo password, and
   // hashing 49 times would just make the seed slow.
-  passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  passwordHash = await bcrypt.hash(demoPassword, 10);
 
   // ── Institutes ────────────────────────────────────────────
   for (const { domain: _domain, ...inst } of institutes) {
@@ -252,7 +273,8 @@ async function main() {
 
   console.log(`\nSeed complete in ${((Date.now() - started) / 1000).toFixed(1)}s`);
   console.table(counts);
-  console.log(`\nDemo logins (password for all: ${DEMO_PASSWORD})\n`);
+  // Never print the private password used for a hosted database.
+  console.log(`\nDemo logins (password for all: ${isRemote ? 'the SEED_DEMO_PASSWORD you set' : DEMO_PASSWORD})\n`);
   console.table([
     { role: 'ADMIN', name: 'Capacity Connect Admin', email: adminEmail, status: 'APPROVED' },
     ...trainerLogins.map((t) => ({ role: 'TRAINER', name: t.name, email: t.email, status: 'APPROVED' })),

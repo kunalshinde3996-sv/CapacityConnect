@@ -48,6 +48,44 @@ Password for every demo account: `Demo@2026`
 
 Re-running the seed resets demo accounts to these states.
 
+These credentials are public, so they only work on a **local** database. The live site's
+demo accounts use a private password (see below).
+
+## Deployment (free tier)
+
+```
+Browser ──> Vercel (Next.js web) ──/api/* proxy──> Render (Express API) ──> Neon (Postgres)
+```
+
+The browser only talks to the Vercel site; Next.js forwards `/api/*` to Render
+(`apps/web/next.config.ts`). That keeps the refresh cookie first-party, which Safari needs.
+
+1. **Neon** (database): create a project in region *AWS Asia Pacific (Singapore)*. Copy the
+   connection string for the **direct** host (not the one with `-pooler`).
+2. **Render** (API): *New → Blueprint* → this repo. It reads `render.yaml`. Set
+   `DATABASE_URL` (Neon) and `CORS_ORIGINS` (the Vercel URL, once you have it).
+   Migrations run automatically on every start.
+3. **Vercel** (web): import this repo, set *Root Directory* to `apps/web`, and add
+   `API_ORIGIN` = the Render URL (e.g. `https://capacity-connect-api.onrender.com`).
+   Redeploy whenever `API_ORIGIN` changes (it is read at build time).
+4. **Seed the hosted database** once, from your machine (secrets stay in a gitignored file):
+
+   ```bash
+   # apps/api/.env.deploy  (gitignored)
+   DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require
+   SEED_ALLOW_PROD=true
+   SEED_DEMO_PASSWORD=<private password, 12+ characters>
+   ```
+
+   ```bash
+   npm run hosted:migrate -w apps/api   # create tables on Neon
+   npm run hosted:seed -w apps/api      # demo data with your private password
+   ```
+
+Free-tier limits: the Render API sleeps after 15 minutes idle and takes up to a minute to
+wake (the login page pings it early). Render's disk is wiped on restart, so file uploads
+will need object storage in a later phase.
+
 ## Notes
 
 - npm 11 only runs dependency install scripts that are approved in `allowScripts` (root

@@ -14,6 +14,12 @@ export default function LoginPage() {
   const [error, setError] = useState<{ message: string; tone: 'red' | 'amber' } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // The free API host sleeps when idle and takes up to a minute to wake. Ping it as soon
+  // as this page opens, so it is usually awake by the time the user presses "Sign in".
+  useEffect(() => {
+    fetch('/api/health').catch(() => {});
+  }, []);
+
   // Already logged in (e.g. restored from the refresh cookie): skip the form.
   useEffect(() => {
     if (state.status === 'authenticated') router.replace(homeFor(state.user));

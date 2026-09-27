@@ -6,8 +6,8 @@
 //  - The refresh token is an HttpOnly cookie set by the API; we never see it.
 //    `credentials: 'include'` makes the browser send it to /api/auth/*.
 //  - When a request fails with 401, we refresh once and retry.
-
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+//  - All URLs are relative (/api/...): Next.js proxies them to the Express API
+//    (see next.config.ts), so the cookie belongs to this site.
 
 export type Role = 'TRAINEE' | 'TRAINER' | 'ADMIN';
 
@@ -59,7 +59,7 @@ async function parse<T>(res: Response): Promise<T> {
 export function refreshSession(): Promise<User | null> {
   refreshInFlight ??= withRefreshLock(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const res = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
       const data = await parse<{ accessToken: string; user: User }>(res);
       accessToken = data.accessToken;
       return data.user;
@@ -82,7 +82,7 @@ function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   const send = () =>
-    fetch(`${API_URL}${path}`, {
+    fetch(path, {
       method: options.method ?? 'GET',
       credentials: 'include',
       headers: {

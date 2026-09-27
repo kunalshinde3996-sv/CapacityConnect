@@ -7,12 +7,13 @@ export const REFRESH_COOKIE = 'cc_refresh';
 
 // HttpOnly: JavaScript in the browser cannot read it (protects against XSS token theft).
 // Path: only sent to /api/auth, not with every API call.
-// In production the web app (Vercel) and the API live on different sites, so the cookie
-// needs SameSite=None + Secure to be sent at all. Locally both are on localhost, so Lax works.
+// SameSite=Lax: the browser only sends it on requests from our own site. That works because
+// the web app proxies /api/* to this API, so browser and API look like one site.
+// Secure (HTTPS only) in production.
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
-  sameSite: env.isProduction ? 'none' : 'lax',
+  sameSite: 'lax',
   path: '/api/auth',
 };
 
