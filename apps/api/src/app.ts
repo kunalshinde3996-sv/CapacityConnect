@@ -18,6 +18,7 @@ import { coursesRouter, myCoursesRouter } from './modules/courses/courses.routes
 import { libraryRouter } from './modules/courses/library.routes.js';
 import { filesRouter } from './modules/storage/files.routes.js';
 import { applicationsRouter } from './modules/users/applications.routes.js';
+import { dashboardRouter } from './modules/users/dashboard.routes.js';
 import { documentsRouter, profileRouter } from './modules/users/profile.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 
@@ -46,6 +47,7 @@ export function createApp() {
   app.use('/api/claims', claimsRouter);
   app.use('/api/verifications', verificationsRouter);
   app.use('/api/trainer-applications', applicationsRouter);
+  app.use('/api/dashboard', dashboardRouter);
   app.use('/api/courses/:courseId/assessments', courseAssessmentsRouter);
   app.use('/api/courses/:courseId/progress', courseProgressRouter);
   app.use('/api/courses', coursesRouter);

@@ -29,7 +29,7 @@ export const assessments: SeedAssessment[] = [
     deadlineDays: -6,
     durationMinutes: 20,
     published: true,
-    attemptShare: 0.85,
+    attemptShare: 0.7,
     difficulty: { [Q]: 0.55, [N]: 0.85 },
     questions: [
       ['A Doppler weather radar measures radial velocity from…', R, ['The change in frequency of the returned pulse', 'The strength of the returned pulse', 'The time the pulse takes to return', 'The polarisation of the pulse'], 0, 'Motion toward or away from the radar shifts the frequency (Doppler effect).'],
@@ -82,7 +82,7 @@ export const assessments: SeedAssessment[] = [
     deadlineDays: -3,
     durationMinutes: 15,
     published: true,
-    attemptShare: 0.8,
+    attemptShare: 0.55,
     difficulty: { 'Incident Response': 0.7 },
     questions: [
       ['The safest way to log in to a remote Linux server is…', 'Network Security', ['SSH with a key pair', 'Telnet with a shared password', 'FTP', 'An open port with no login'], 0, 'SSH keys avoid guessable passwords and encrypt the session.'],
@@ -117,7 +117,7 @@ export const assessments: SeedAssessment[] = [
     deadlineDays: -10,
     durationMinutes: 15,
     published: true,
-    attemptShare: 0.9,
+    attemptShare: 0.75,
     difficulty: { [Q]: 0.7 },
     questions: [
       ['A temperature sensor should be installed…', 'AWS Calibration', ['In a ventilated radiation shield about 1.25-2 m above ground', 'In direct sunlight on a roof', 'Inside the logger box', 'Buried in the soil'], 0, 'A shield and standard height give representative air temperature.'],

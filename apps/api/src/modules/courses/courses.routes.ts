@@ -34,6 +34,7 @@ coursesRouter.post('/:id/modules/:moduleId/move', staff, validateBody(moveModule
 coursesRouter.put('/:id/trainer', requireRole('ADMIN'), validateBody(assignTrainerSchema), controller.assignTrainer);
 
 coursesRouter.post('/:id/enroll', requireRole('TRAINEE'), controller.enroll);
+coursesRouter.post('/:id/enrollments/:userId/complete', staff, controller.completeEnrollment);
 
 // Feedback: trainees rate (once, editable); the trainer sees the summary and comments
 coursesRouter.put('/:id/feedback', requireRole('TRAINEE'), validateBody(feedbackSchema), controller.saveFeedback);

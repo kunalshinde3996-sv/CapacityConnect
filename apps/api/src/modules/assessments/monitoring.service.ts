@@ -64,6 +64,7 @@ export async function courseProgress(actor: Actor, courseId: string) {
     return {
       user: e.user,
       enrolledAt: e.enrolledAt,
+      enrollmentStatus: e.status, // ENROLLED or COMPLETED (the trainer can mark completion)
       results,
       averagePercent: scores.length ? round1(scores.reduce((x, y) => x + y, 0) / scores.length) : null,
       outstanding: results.filter((r) => r.status === 'PENDING' || r.status === 'IN_PROGRESS').length,

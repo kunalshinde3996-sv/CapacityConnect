@@ -284,6 +284,7 @@ async function main() {
   await seedLibrary(competencyId);
   await seedAssessments();
   await seedFeedback();
+  await seedCompletions();
 
   // ── Summary ───────────────────────────────────────────────
   const counts = {
@@ -525,6 +526,42 @@ async function seedAssessments() {
           create: { userId: e.userId, competencyId: c.competencyId, level: c.after, source: 'ASSESSMENT' },
         });
       }
+    }
+  }
+}
+
+// Course completions: in courses whose assessment has closed, trainees who passed are marked
+// completed and get a course certificate (as a trainer would do from Class progress).
+const COMPLETION_COURSES = ['AWS Installation and Field Calibration', 'Tsunami Warning Centre Operations'];
+
+async function seedCompletions() {
+  const demo = { email: { endsWith: '.example' } };
+  // Reset: remove course certificates of demo trainees from earlier runs.
+  await prisma.certificate.deleteMany({ where: { courseId: { not: null }, user: demo } });
+
+  for (const title of COMPLETION_COURSES) {
+    const course = await prisma.course.findFirstOrThrow({ where: { title }, include: { assessments: { include: { attempts: true } } } });
+    const passed = new Set(
+      course.assessments.flatMap((a) =>
+        a.attempts.filter((t) => t.submittedAt && t.maxScore && (t.score ?? 0) / t.maxScore >= a.passPercent / 100).map((t) => t.userId),
+      ),
+    );
+    const enrollments = await prisma.enrollment.findMany({ where: { courseId: course.id, userId: { in: [...passed] }, user: demo } });
+    for (const e of enrollments) {
+      const completedAt = new Date(Date.now() - 2 * 86_400_000);
+      await prisma.enrollment.update({ where: { id: e.id }, data: { status: 'COMPLETED', completedAt } });
+      await prisma.certificate.create({
+        data: {
+          userId: e.userId,
+          courseId: course.id,
+          title: `Course completion: ${course.title}`,
+          issuer: 'Capacity Connect (MoES)',
+          issuedOn: completedAt,
+          status: 'VERIFIED',
+          verifiedById: course.trainerId,
+          verifiedAt: completedAt,
+        },
+      });
     }
   }
 }

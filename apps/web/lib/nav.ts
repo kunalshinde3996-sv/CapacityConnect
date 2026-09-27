@@ -23,6 +23,7 @@ export const NAV: Record<Exclude<Role, 'ADMIN'>, NavItem[]> = {
 };
 
 export const ADMIN_NAV: NavItem[] = [
+  { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/approvals', label: 'Approvals' },
   { href: '/admin/verifications', label: 'Verifications' },
   { href: '/admin/applications', label: 'Trainer applications' },

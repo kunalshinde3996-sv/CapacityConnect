@@ -64,3 +64,7 @@ export async function saveFeedback(req: Request, res: Response) {
 export async function getFeedback(req: Request, res: Response) {
   res.json(await feedbackService.getFeedback(actor(req), p(req, 'id')));
 }
+
+export async function completeEnrollment(req: Request, res: Response) {
+  res.json({ enrollment: await enrollmentsService.completeEnrollment(actor(req), p(req, 'id'), p(req, 'userId')) });
+}

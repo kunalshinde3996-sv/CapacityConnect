@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Card, EmptyState, Select, Spinner } from '@/components/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Badge, Button, Card, EmptyState, Select, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/assessments';
 
@@ -24,6 +24,7 @@ interface Progress {
   }[];
   trainees: {
     user: { id: string; fullName: string; email: string; designation: string | null; institute: { code: string } | null };
+    enrollmentStatus: 'ENROLLED' | 'COMPLETED';
     results: { assessmentId: string; status: Status; percent: number | null }[];
     averagePercent: number | null;
     outstanding: number;
@@ -46,11 +47,11 @@ export function ClassProgress({ courseId }: { courseId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'missed'>('all');
 
+  const fail = useCallback((err: unknown) => setError(err instanceof ApiError ? err.message : 'Could not load class progress'), []);
+  const reload = useCallback(() => api<Progress>(`/api/courses/${courseId}/progress`).then(setData).catch(fail), [courseId, fail]);
   useEffect(() => {
-    api<Progress>(`/api/courses/${courseId}/progress`)
-      .then(setData)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load class progress'));
-  }, [courseId]);
+    api<Progress>(`/api/courses/${courseId}/progress`).then(setData).catch(fail);
+  }, [courseId, fail]);
 
   const trainees = useMemo(() => {
     if (!data) return [];
@@ -154,6 +155,7 @@ export function ClassProgress({ courseId }: { courseId: string }) {
                   <th key={a.id} className="px-3 py-2 font-medium">{a.title}</th>
                 ))}
                 <th className="py-2 pl-3 text-right font-medium">Average</th>
+                <th className="py-2 pl-3 font-medium">Course</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -169,6 +171,7 @@ export function ClassProgress({ courseId }: { courseId: string }) {
                     </td>
                   ))}
                   <td className="py-2 pl-3 text-right font-semibold tabular-nums">{t.averagePercent === null ? '–' : `${t.averagePercent}%`}</td>
+                  <td className="py-2 pl-3"><Completion courseId={courseId} trainee={t} onDone={reload} /></td>
                 </tr>
               ))}
             </tbody>
@@ -194,10 +197,39 @@ export function ClassProgress({ courseId }: { courseId: string }) {
                   </li>
                 ))}
               </ul>
+              <div className="mt-2 border-t border-slate-100 pt-2"><Completion courseId={courseId} trainee={t} onDone={reload} /></div>
             </li>
           ))}
         </ul>
       </Card>
     </div>
+  );
+}
+
+// "Mark completed" for one trainee: completes the enrolment and issues a course certificate.
+function Completion({ courseId, trainee, onDone }: { courseId: string; trainee: Progress['trainees'][number]; onDone: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (trainee.enrollmentStatus === 'COMPLETED') return <Badge tone="green">Completed</Badge>;
+
+  async function complete() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/api/courses/${courseId}/enrollments/${trainee.user.id}/complete`, { method: 'POST' });
+      await onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not mark as completed');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <Button variant="secondary" className="min-h-8 whitespace-nowrap px-3" disabled={busy} onClick={complete} aria-label={`Mark course completed for ${trainee.user.fullName}`}>
+        {busy ? 'Saving…' : 'Mark completed'}
+      </Button>
+      {error && <span className="text-xs text-red-700">{error}</span>}
+    </span>
   );
 }
