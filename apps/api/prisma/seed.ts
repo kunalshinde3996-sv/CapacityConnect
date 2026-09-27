@@ -16,6 +16,7 @@ import { type CompetencySource, PrismaClient, type UserStatus } from '../src/gen
 import { levelUpdates, scoreAttempt, strengthOf } from '../src/services/assessment/scoring.js';
 import { validateRequirements } from '../src/services/matching/matching.js';
 import { assessments as seedAssessmentList } from './seed-assessments.js';
+import { courseFeedback } from './seed-feedback.js';
 import {
   competencies,
   courses,
@@ -282,6 +283,7 @@ async function main() {
   await seedCourses(competencyId);
   await seedLibrary(competencyId);
   await seedAssessments();
+  await seedFeedback();
 
   // ── Summary ───────────────────────────────────────────────
   const counts = {
@@ -297,6 +299,7 @@ async function main() {
     libraryItems: await prisma.libraryItem.count(),
     assessments: await prisma.assessment.count(),
     attempts: await prisma.assessmentAttempt.count(),
+    feedback: await prisma.feedback.count(),
   };
 
   console.log(`\nSeed complete in ${((Date.now() - started) / 1000).toFixed(1)}s`);
@@ -523,6 +526,30 @@ async function seedAssessments() {
         });
       }
     }
+  }
+}
+
+// Ratings from the first enrolled demo trainees (not the journey trainee, who rates
+// a course during the demo). Reset on every run.
+async function seedFeedback() {
+  for (const [title, entries] of Object.entries(courseFeedback)) {
+    const course = await prisma.course.findFirstOrThrow({ where: { title } });
+    const raters = await prisma.enrollment.findMany({
+      where: { courseId: course.id, status: { not: 'DROPPED' }, user: { email: { endsWith: '.example', not: JOURNEY_TRAINEE } } },
+      orderBy: { user: { email: 'asc' } },
+      take: entries.length,
+    });
+    if (raters.length < entries.length) throw new Error(`Not enough enrolled trainees to seed feedback for ${title}`);
+    await prisma.feedback.deleteMany({ where: { courseId: course.id, user: { email: { endsWith: '.example' } } } });
+    await prisma.feedback.createMany({
+      data: entries.map(([rating, comment], i) => ({
+        courseId: course.id,
+        userId: raters[i]!.userId,
+        rating,
+        comment,
+        createdAt: new Date(Date.now() - (i + 1) * 36 * 3_600_000),
+      })),
+    });
   }
 }
 

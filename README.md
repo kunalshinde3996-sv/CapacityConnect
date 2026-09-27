@@ -43,13 +43,32 @@ Password for every demo account: `Demo@2026`
 
 - Admin: `admin@moes.example`
 - Trainer: `meera.kulkarni@imd.example` (and 7 others, printed by the seed)
-- Trainee: `aditya.sharma@imd.example`
+- Trainee: `aditya.sharma@imd.example` (the demo journey: 1 assessment due, not yet in the
+  ocean course, no rating given yet, trainer application pending)
+- Trainer with a teaching record from good feedback: `arjun.menon@imd.example`
 - Pending (for the approval demo): `zoya.qureshi@imd.example` and 5 others
 
 Re-running the seed resets demo accounts to these states.
 
 These credentials are public, so they only work on a **local** database. The live site's
 demo accounts use a private password (see below).
+
+## Demo walkthrough (Phase 2)
+
+- **Trainee** (`aditya.sharma@imd.example`): My courses (assessment due) → Browse courses → enrol in
+  *Ocean Data Analysis with Python* → Library video → take *Argo data warm-up* → result with
+  per-competency breakdown and skill levels → rate the course → Profile.
+- **Trainer** (`meera.kulkarni@imd.example` or `priya.nair@incois.example`): My teaching → a course → tabs Modules,
+  Library, Assessments, Class progress (weakest competencies), Feedback.
+- **Admin**: Verifications (Sanjay's and Neha's certificate claims), Trainer applications,
+  Trainer matching → *Tropical Cyclone…* → Arjun's "Teaching record" in the breakdown.
+
+Rules worth knowing (all in `apps/api/src/services`, with unit tests):
+- Assessment skill levels: only competencies with ≥ 2 questions; ≥ 80% → L3, 50–79% → L2,
+  < 50% → L1; never L4; never lowers an admin-set level.
+- Feedback as teaching evidence: ≥ 3 ratings averaging ≥ 4.0 → a TEACHING claim (trust 0.8) at
+  the course's target level for each course competency, used only where it beats the trainer's
+  own claim.
 
 ## Deployment (free tier)
 
@@ -67,7 +86,9 @@ The browser only talks to the Vercel site; Next.js forwards `/api/*` to Render
    Migrations run automatically on every start.
 3. **Vercel** (web): import this repo, set *Root Directory* to `apps/web`, and add
    `API_ORIGIN` = the Render URL (e.g. `https://capacity-connect-api.onrender.com`).
-   Redeploy whenever `API_ORIGIN` changes (it is read at build time).
+   Also add `NEXT_PUBLIC_API_ORIGIN` = the same Render URL (file uploads and downloads go
+   straight to the API, not through the proxy). Redeploy whenever either changes (both are
+   read at build time).
 4. **Seed the hosted database** once, from your machine (secrets stay in a gitignored file):
 
    ```bash
@@ -83,8 +104,10 @@ The browser only talks to the Vercel site; Next.js forwards `/api/*` to Render
    ```
 
 Free-tier limits: the Render API sleeps after 15 minutes idle and takes up to a minute to
-wake (the login page pings it early). Render's disk is wiped on restart, so file uploads
-will need object storage in a later phase.
+wake (the login page pings it early). Render's disk is wiped on restart: the demo files in
+`apps/api/demo-files` are copied back into storage every time the API starts, but files
+uploaded on the live site are lost. Moving to object storage only needs a new class behind
+the `StorageService` interface (`apps/api/src/modules/storage`).
 
 ## Notes
 

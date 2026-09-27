@@ -41,5 +41,10 @@ export const moduleSchema = z.object({
 export const moveModuleSchema = z.object({ direction: z.enum(['UP', 'DOWN']) });
 export const assignTrainerSchema = z.object({ trainerId: z.string().min(1) });
 
+export const feedbackSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(1000).optional(),
+});
+
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;

@@ -2,6 +2,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { rankTrainers, type Requirement } from '../../services/matching/matching.js';
+import { teachingClaims } from '../../services/matching/teachingEvidence.js';
 
 const requirementInclude = {
   requirements: {
@@ -43,6 +44,10 @@ export async function getTrainerMatches(subjectId: string) {
         where: { competencyId: { in: requirements.map((r) => r.competencyId) } },
         select: { competencyId: true, level: true, evidenceType: true, verified: true, evidenceNote: true },
       },
+      // Courses they teach, with ratings: good feedback counts as TEACHING evidence
+      coursesTeaching: {
+        select: { title: true, feedback: { select: { rating: true } }, competencies: { select: { competencyId: true, targetLevel: true } } },
+      },
     },
   });
 
@@ -50,21 +55,22 @@ export async function getTrainerMatches(subjectId: string) {
   try {
     ranked = rankTrainers(
       requirements,
-      trainers.map(({ trainerCompetencies, ...trainer }) => ({ trainer, claims: trainerCompetencies })),
+      trainers.map(({ trainerCompetencies, coursesTeaching, ...trainer }) => ({
+        trainer,
+        claims: [
+          // The trainer's own claims first: on a tie with a derived claim, their own evidence is shown.
+          ...trainerCompetencies.map(({ evidenceNote, ...c }) => ({ ...c, note: evidenceNote })),
+          ...teachingClaims(coursesTeaching.map((c) => ({ ...c, ratings: c.feedback.map((f) => f.rating) }))),
+        ],
+      })),
     );
   } catch (err) {
     // e.g. weights that do not sum to 1 - an admin needs to fix the subject first
     throw new AppError(422, 'SUBJECT_MISCONFIGURED', (err as Error).message);
   }
 
-  // Attach the trainer's evidence note to each row, so the UI can show *what* the evidence is.
-  const notes = new Map(trainers.flatMap((t) => t.trainerCompetencies.map((c) => [`${t.id}:${c.competencyId}`, c.evidenceNote])));
-  const matches = ranked.map((m) => ({
-    ...m,
-    breakdown: m.breakdown.map((row) => ({ ...row, evidenceNote: notes.get(`${m.trainer.id}:${row.competencyId}`) ?? null })),
-  }));
-
-  return { subject: dto, matches };
+  // Each breakdown row carries the note of the claim that was used (own claim or teaching record).
+  return { subject: dto, matches: ranked };
 }
 
 type SubjectWithRequirements = Prisma.SubjectGetPayload<{ include: typeof requirementInclude }>;

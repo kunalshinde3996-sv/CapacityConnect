@@ -24,6 +24,7 @@ export interface Claim {
   level: number; // 1-4
   evidenceType: EvidenceType;
   verified: boolean;
+  note?: string | null; // what backs the claim, shown in the breakdown
 }
 
 export type RequirementStatus =
@@ -44,6 +45,7 @@ export interface CompetencyBreakdown {
   coverage: number; // levelRatio x trust
   contribution: number; // weight x coverage (what this row adds to fitScore)
   status: RequirementStatus;
+  evidenceNote: string | null; // note of the claim that was used
 }
 
 export interface FitResult {
@@ -155,6 +157,7 @@ function scoreClaim(req: Requirement, claim: Claim): CompetencyBreakdown {
     levelRatio,
     coverage,
     contribution: req.weight * coverage,
+    evidenceNote: claim.note ?? null,
     status: claim.level >= req.minLevel ? 'MEETS' : 'BELOW_LEVEL',
   };
 }
@@ -173,5 +176,6 @@ function missingRow(req: Requirement): CompetencyBreakdown {
     coverage: 0,
     contribution: 0,
     status: 'MISSING',
+    evidenceNote: null,
   };
 }

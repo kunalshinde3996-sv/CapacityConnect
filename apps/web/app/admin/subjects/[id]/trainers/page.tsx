@@ -211,7 +211,11 @@ function BreakdownItem({ row }: { row: BreakdownRow }) {
           min({row.claimedLevel}/{row.minLevel}, 1) × {row.trust} = {row.coverage.toFixed(2)} coverage × {row.weight} weight
         </p>
       )}
-      {row.evidenceNote && <p className="mt-1 text-xs italic text-slate-500">“{row.evidenceNote}”</p>}
+      {row.evidenceNote &&
+        (row.evidenceNote.startsWith('Teaching record')
+          ? // Generated from course feedback, not the trainer's own words: no quotation marks
+            <p className="mt-1 text-xs text-slate-500">{row.evidenceNote}</p>
+          : <p className="mt-1 text-xs italic text-slate-500">“{row.evidenceNote}”</p>)}
     </li>
   );
 }

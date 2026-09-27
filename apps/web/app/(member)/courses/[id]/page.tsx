@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CourseAssessments } from '@/components/assessments/CourseAssessments';
+import { FeedbackCard } from '@/components/feedback/FeedbackCard';
 import { CourseMaterials } from '@/components/library/CourseMaterials';
 import { Alert, Badge, Button, Card, levelLabel, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
@@ -98,7 +99,9 @@ export default function CourseDetailPage() {
               ))}
             </ol>
           </Card>
-          {isTrainee && <CourseAssessments courseId={course.id} />}
+          {/* key: re-load the list after enrolling (it was fetched while not yet enrolled) */}
+          {isTrainee && <CourseAssessments key={enrolled ? 'enrolled' : 'not-enrolled'} courseId={course.id} />}
+          {isTrainee && enrolled && <FeedbackCard courseId={course.id} />}
           <CourseMaterials courseId={course.id} />
         </div>
         <Card title="Competencies you will build">

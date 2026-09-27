@@ -5,6 +5,7 @@ import * as controller from './courses.controller.js';
 import {
   assignTrainerSchema,
   createCourseSchema,
+  feedbackSchema,
   moduleSchema,
   moveModuleSchema,
   updateCourseSchema,
@@ -33,6 +34,10 @@ coursesRouter.post('/:id/modules/:moduleId/move', staff, validateBody(moveModule
 coursesRouter.put('/:id/trainer', requireRole('ADMIN'), validateBody(assignTrainerSchema), controller.assignTrainer);
 
 coursesRouter.post('/:id/enroll', requireRole('TRAINEE'), controller.enroll);
+
+// Feedback: trainees rate (once, editable); the trainer sees the summary and comments
+coursesRouter.put('/:id/feedback', requireRole('TRAINEE'), validateBody(feedbackSchema), controller.saveFeedback);
+coursesRouter.get('/:id/feedback', controller.getFeedback);
 
 // GET /api/me/courses - a trainee's enrolments
 export const myCoursesRouter = Router();

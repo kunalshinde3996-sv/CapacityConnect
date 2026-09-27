@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TrainerAssessmentList } from '@/components/assessments/TrainerAssessmentList';
 import { CourseForm } from '@/components/courses/CourseForm';
 import { ModulesEditor } from '@/components/courses/ModulesEditor';
+import { FeedbackSummary } from '@/components/feedback/FeedbackSummary';
 import { CourseMaterials } from '@/components/library/CourseMaterials';
 import { UploadForm } from '@/components/library/UploadForm';
 import { ClassProgress } from '@/components/monitoring/ClassProgress';
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'library', label: 'Library' },
   { id: 'assessments', label: 'Assessments' },
   { id: 'progress', label: 'Class progress' },
+  { id: 'feedback', label: 'Feedback' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -123,6 +125,7 @@ export default function ManageCoursePage() {
       )}
       {tab === 'assessments' && <TrainerAssessmentList courseId={course.id} />}
       {tab === 'progress' && <ClassProgress courseId={course.id} />}
+      {tab === 'feedback' && <FeedbackSummary courseId={course.id} />}
     </>
   );
 }
