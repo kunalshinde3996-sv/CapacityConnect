@@ -19,6 +19,8 @@ npm install                                   # installs both apps (npm workspac
 cp apps/api/.env.example apps/api/.env        # then edit the JWT secrets
 cp apps/web/.env.example apps/web/.env.local
 npm run db:up                                 # Postgres in Docker on host port 5433
+npm run db:migrate                            # create tables
+npm run db:seed                               # demo data (safe to re-run)
 npm run dev                                   # API + web together
 ```
 
@@ -32,6 +34,19 @@ npm run dev                                   # API + web together
 | `npm run typecheck` | TypeScript check for both apps                 |
 | `npm run lint`      | ESLint for both apps                           |
 | `npm run db:up`     | Start the local Postgres container             |
+| `npm run db:migrate`| Apply Prisma migrations to the dev database    |
+| `npm run db:seed`   | Load/reset demo data (idempotent)              |
+
+## Demo logins (after seeding)
+
+Password for every demo account: `Demo@2026`
+
+- Admin: `admin@moes.example`
+- Trainer: `meera.kulkarni@imd.example` (and 7 others, printed by the seed)
+- Trainee: `aditya.sharma@imd.example`
+- Pending (for the approval demo): `zoya.qureshi@imd.example` and 5 others
+
+Re-running the seed resets demo accounts to these states.
 
 ## Notes
 
