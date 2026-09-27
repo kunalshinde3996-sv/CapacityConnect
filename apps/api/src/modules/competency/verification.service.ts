@@ -1,6 +1,7 @@
 import { audit } from '../../lib/audit.js';
 import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import { notify } from '../notifications/notifications.service.js';
 import type { ReviewInput } from './claims.schemas.js';
 
 const owner = { select: { id: true, fullName: true, email: true, role: true, institute: { select: { code: true } } } };
@@ -61,6 +62,26 @@ export async function reviewClaim(adminId: string, claimId: string, input: Revie
   const approve = input.decision === 'APPROVE';
   const now = new Date();
 
+  const reviewed = await reviewClaimInTransaction(adminId, claim, approve, now, input);
+  await notify([claim.userId], {
+    type: 'VERIFICATION_RESULT',
+    title: approve ? `Claim verified: ${claim.competency.name}` : `Claim not accepted: ${claim.competency.name}`,
+    body: approve
+      ? `An admin verified your ${claim.competency.name} claim (level ${claim.level}). It now counts fully in trainer matching.`
+      : `An admin did not accept the evidence for your ${claim.competency.name} claim${input.reason ? `: ${input.reason}` : '.'} It still counts as unverified.`,
+    link: '/profile',
+  });
+  return reviewed;
+}
+
+function reviewClaimInTransaction(
+  adminId: string,
+  claim: { id: string; userId: string; level: number; evidenceType: string; certificateId: string | null; qualificationId: string | null; competency: { name: string } },
+  approve: boolean,
+  now: Date,
+  input: ReviewInput,
+) {
+  const claimId = claim.id;
   return prisma.$transaction(async (tx) => {
     // Only if still unreviewed (another admin may have acted a moment ago).
     const { count } = await tx.trainerCompetency.updateMany({
@@ -105,7 +126,7 @@ export async function reviewDocument(adminId: string, kind: 'certificate' | 'qua
     ? { status: 'VERIFIED' as const, verifiedAt: new Date(), verifiedById: adminId, rejectionReason: null }
     : { status: 'REJECTED' as const, verifiedAt: new Date(), verifiedById: adminId, rejectionReason: input.reason ?? null };
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const { count } =
       kind === 'certificate'
         ? await tx.certificate.updateMany({ where: { id, status: 'PENDING' }, data })
@@ -125,4 +146,20 @@ export async function reviewDocument(adminId: string, kind: 'certificate' | 'qua
     });
     return { id, status: data.status };
   });
+
+  // Tell the owner of the document
+  const doc =
+    kind === 'certificate'
+      ? await prisma.certificate.findUniqueOrThrow({ where: { id }, select: { userId: true, title: true } })
+      : await prisma.qualification.findUniqueOrThrow({ where: { id }, select: { userId: true, degree: true, fieldOfStudy: true } });
+  const name = 'title' in doc ? doc.title : `${doc.degree} ${doc.fieldOfStudy}`;
+  await notify([doc.userId], {
+    type: 'VERIFICATION_RESULT',
+    title: approve ? `Verified: ${name}` : `Not verified: ${name}`,
+    body: approve
+      ? `An admin verified your ${kind} "${name}".`
+      : `An admin could not verify your ${kind} "${name}"${input.reason ? `: ${input.reason}` : '.'} You can upload a clearer copy.`,
+    link: '/profile',
+  });
+  return result;
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Button, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { ADMIN_NAV as NAV } from '@/lib/nav';
@@ -46,6 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             Capacity Connect <span className="font-normal text-slate-500">Admin</span>
           </Link>
           <div className="flex items-center gap-3 text-sm sm:order-last">
+            <NotificationBell />
             <span className="hidden text-slate-600 sm:inline">{state.user.fullName}</span>
             <Button
               variant="secondary"

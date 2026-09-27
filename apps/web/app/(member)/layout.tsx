@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Button, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { NAV } from '@/lib/nav';
@@ -37,6 +38,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
             <span className="font-normal text-slate-500">{state.user.role === 'TRAINER' ? 'Trainer' : 'Learner'}</span>
           </Link>
           <div className="flex items-center gap-3 text-sm sm:order-last">
+            <NotificationBell />
             <span className="hidden text-slate-600 sm:inline">{state.user.fullName}</span>
             <Button
               variant="secondary"

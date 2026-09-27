@@ -2,6 +2,7 @@ import type { Role, UserStatus } from '../../generated/prisma/client.js';
 import { audit } from '../../lib/audit.js';
 import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import { notify } from '../notifications/notifications.service.js';
 import { publicUserSelect, type PublicUser } from './users.select.js';
 import type { ListUsersQuery } from './users.schemas.js';
 
@@ -80,6 +81,34 @@ async function changeStatus(
     throw AppError.conflict(`Cannot change a ${user.status} account to ${change.to}`);
   }
 
+  const updated = await changeStatusInTransaction(adminId, userId, user.status, change);
+
+  // Tell the user about the decision on their registration (a rejected user cannot sign in,
+  // so for them the email is what matters).
+  if (change.to === 'APPROVED' && user.status === 'PENDING') {
+    await notify([userId], {
+      type: 'ACCOUNT_APPROVED',
+      title: 'Your account is approved',
+      body: 'An administrator approved your Capacity Connect account. You can now sign in and enrol in courses.',
+      link: '/',
+    });
+  }
+  if (change.to === 'REJECTED') {
+    await notify([userId], {
+      type: 'ACCOUNT_REJECTED',
+      title: 'Your registration was not approved',
+      body: `An administrator did not approve your registration${change.reason ? `: ${change.reason}` : '.'} Contact your training coordinator if you think this is a mistake.`,
+    });
+  }
+  return updated;
+}
+
+function changeStatusInTransaction(
+  adminId: string,
+  userId: string,
+  previous: UserStatus,
+  change: { from: UserStatus[]; to: UserStatus; action: string; reason?: string },
+) {
   return prisma.$transaction(async (tx) => {
     // Re-check the status inside the update, so two admins acting at the same
     // moment cannot both succeed (e.g. one approves while the other rejects).
@@ -100,7 +129,7 @@ async function changeStatus(
       action: change.action,
       entityType: 'User',
       entityId: userId,
-      metadata: { from: user.status, to: change.to, ...(change.reason && { reason: change.reason }) },
+      metadata: { from: previous, to: change.to, ...(change.reason && { reason: change.reason }) },
     });
     return updated;
   });

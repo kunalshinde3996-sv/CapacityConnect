@@ -17,6 +17,7 @@ import { subjectsRouter } from './modules/competency/subjects.routes.js';
 import { coursesRouter, myCoursesRouter } from './modules/courses/courses.routes.js';
 import { libraryRouter } from './modules/courses/library.routes.js';
 import { filesRouter } from './modules/storage/files.routes.js';
+import { announcementsRouter, notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { applicationsRouter } from './modules/users/applications.routes.js';
 import { dashboardRouter } from './modules/users/dashboard.routes.js';
 import { documentsRouter, profileRouter } from './modules/users/profile.routes.js';
@@ -38,6 +39,7 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/subjects', subjectsRouter);
   app.use('/api/files', filesRouter);
+  app.use('/api/me/notifications', notificationsRouter);
   app.use('/api/me/claims', myClaimsRouter);
   app.use('/api/me/courses', myCoursesRouter);
   app.use('/api/me/assessments', myAssessmentsRouter);
@@ -49,6 +51,7 @@ export function createApp() {
   app.use('/api/trainer-applications', applicationsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/skill-gaps', skillGapsRouter);
+  app.use('/api/announcements', announcementsRouter);
   app.use('/api/courses/:courseId/assessments', courseAssessmentsRouter);
   app.use('/api/courses/:courseId/progress', courseProgressRouter);
   app.use('/api/courses', coursesRouter);

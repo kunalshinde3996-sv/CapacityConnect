@@ -16,6 +16,7 @@ import { type CompetencySource, PrismaClient, type UserStatus } from '../src/gen
 import { levelUpdates, scoreAttempt, strengthOf } from '../src/services/assessment/scoring.js';
 import { validateRequirements } from '../src/services/matching/matching.js';
 import { assessments as seedAssessmentList } from './seed-assessments.js';
+import { announcements as seedAnnouncementList } from './seed-announcements.js';
 import { courseFeedback } from './seed-feedback.js';
 import {
   competencies,
@@ -288,6 +289,7 @@ async function main() {
   await seedAssessments();
   await seedFeedback();
   await seedCompletions();
+  await seedCommunication(admin.id);
 
   // ── Summary ───────────────────────────────────────────────
   const counts = {
@@ -531,6 +533,52 @@ async function seedAssessments() {
       }
     }
   }
+}
+
+// Homepage announcements (matched on title) and a first set of in-app notifications for the
+// journey trainee. Demo users' notifications are reset, so reminders are created afresh.
+async function seedCommunication(adminId: string) {
+  for (const a of seedAnnouncementList) {
+    const data = {
+      type: a.type,
+      title: a.title,
+      body: a.body,
+      linkUrl: a.linkUrl ?? null,
+      published: a.daysAgo !== null,
+      publishedAt: a.daysAgo === null ? null : new Date(Date.now() - a.daysAgo * 86_400_000),
+      createdById: adminId,
+    };
+    const existing = await prisma.announcement.findFirst({ where: { title: a.title } });
+    if (existing) await prisma.announcement.update({ where: { id: existing.id }, data });
+    else await prisma.announcement.create({ data });
+  }
+
+  await prisma.notification.deleteMany({ where: { user: { email: { endsWith: '.example' } } } });
+  const aditya = await prisma.user.findUniqueOrThrow({ where: { email: JOURNEY_TRAINEE } });
+  const dwr = await prisma.course.findFirstOrThrow({ where: { title: 'DWR Operations for Forecasters' } });
+  const open = await prisma.assessment.findFirstOrThrow({ where: { courseId: dwr.id, title: 'Reading radar products' } });
+  await prisma.notification.createMany({
+    data: [
+      {
+        userId: aditya.id,
+        type: 'ENROLMENT_CONFIRMED',
+        title: `Enrolled: ${dwr.title}`,
+        body: `You are enrolled in "${dwr.title}". Its materials and assessments are on the course page.`,
+        link: `/courses/${dwr.id}`,
+        readAt: new Date(),
+        createdAt: new Date(Date.now() - 20 * 86_400_000),
+      },
+      {
+        userId: aditya.id,
+        type: 'NEW_ASSESSMENT',
+        title: `New assessment: ${open.title}`,
+        body: `"${open.title}" is now open in "${dwr.title}".`,
+        link: `/assessments/${open.id}`,
+        dedupeKey: `assessment:${open.id}:${aditya.id}`,
+        createdAt: new Date(Date.now() - 2 * 86_400_000),
+      },
+    ],
+  });
 }
 
 // Course completions: in courses whose assessment has closed, trainees who passed are marked

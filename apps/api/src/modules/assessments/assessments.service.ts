@@ -12,6 +12,7 @@ import {
   strengthOf,
 } from '../../services/assessment/scoring.js';
 import { type Actor, canManage } from '../courses/courses.service.js';
+import { notify } from '../notifications/notifications.service.js';
 import type { AssessmentInput } from './assessments.schemas.js';
 
 // Small allowance for network delay: a submission sent at the last second still counts.
@@ -136,11 +137,28 @@ export async function setPublished(actor: Actor, id: string, published: boolean)
   if (!published && (await prisma.assessmentAttempt.count({ where: { assessmentId: id } }))) {
     throw AppError.conflict('Trainees have already started this assessment; it cannot be unpublished');
   }
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.assessment.update({ where: { id }, data: { published } });
+  const updated = await prisma.$transaction(async (tx) => {
+    const saved = await tx.assessment.update({ where: { id }, data: { published } });
     await audit(tx, { actorId: actor.id, action: published ? 'ASSESSMENT_PUBLISHED' : 'ASSESSMENT_UNPUBLISHED', entityType: 'Assessment', entityId: id });
-    return updated;
+    return saved;
   });
+
+  if (published) {
+    // Tell every enrolled trainee (once per assessment, even if it is re-published).
+    const enrolled = await prisma.enrollment.findMany({ where: { courseId: assessment.courseId, status: 'ENROLLED' }, select: { userId: true } });
+    const when = assessment.deadline.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
+    await notify(
+      enrolled.map((e) => e.userId),
+      {
+        type: 'NEW_ASSESSMENT',
+        title: `New assessment: ${assessment.title}`,
+        body: `"${assessment.title}" is now open in "${assessment.course.title}". Deadline: ${when} IST.`,
+        link: `/assessments/${id}`,
+        dedupeKey: `assessment:${id}`,
+      },
+    );
+  }
+  return updated;
 }
 
 // ── Listing and viewing ────────────────────────────────────

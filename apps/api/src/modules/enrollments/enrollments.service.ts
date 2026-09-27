@@ -1,12 +1,25 @@
 import { audit } from '../../lib/audit.js';
 import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import { notify } from '../notifications/notifications.service.js';
 
 // Enrols a trainee in a published course, respecting its capacity.
 //
 // The course row is locked (SELECT ... FOR UPDATE) while seats are counted, so two
 // trainees clicking "Enrol" for the last seat at the same moment cannot both get it.
 export async function enroll(userId: string, courseId: string) {
+  const enrollment = await enrollInTransaction(userId, courseId);
+  const course = await prisma.course.findUniqueOrThrow({ where: { id: courseId }, select: { title: true } });
+  await notify([userId], {
+    type: 'ENROLMENT_CONFIRMED',
+    title: `Enrolled: ${course.title}`,
+    body: `You are enrolled in "${course.title}". Its materials and assessments are on the course page.`,
+    link: `/courses/${courseId}`,
+  });
+  return enrollment;
+}
+
+function enrollInTransaction(userId: string, courseId: string) {
   return prisma.$transaction(async (tx) => {
     const [course] = await tx.$queryRaw<{ id: string; status: string; capacity: number | null; endDate: Date | null }[]>`
       SELECT id, status, capacity, "endDate" FROM "Course" WHERE id = ${courseId} FOR UPDATE`;
