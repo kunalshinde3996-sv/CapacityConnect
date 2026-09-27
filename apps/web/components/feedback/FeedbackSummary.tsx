@@ -89,7 +89,7 @@ export function FeedbackSummary({ courseId }: { courseId: string }) {
               <li key={c.id} className="py-3 text-sm">
                 <p className="text-amber-500" aria-label={`${c.rating} stars`}>{stars(c.rating)}</p>
                 <p className="mt-1 text-slate-800">{c.comment}</p>
-                <p className="mt-1 text-xs text-slate-400">{formatDate(c.createdAt)}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatDate(c.createdAt)}</p>
               </li>
             ))}
           </ul>

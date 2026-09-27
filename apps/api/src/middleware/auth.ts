@@ -32,9 +32,11 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
 
 // Use after requireAuth: requireRole('ADMIN') or requireRole('TRAINER', 'ADMIN').
 export function requireRole(...roles: Role[]): RequestHandler {
-  return (req, _res, next) => {
+  const handler: RequestHandler = (req, _res, next) => {
     if (!req.user) return next(AppError.unauthorized());
     if (!roles.includes(req.user.role)) return next(AppError.forbidden());
     next();
   };
+  // Lets the route audit (lib/routeTable.ts) see which roles each route allows.
+  return Object.assign(handler, { allowedRoles: roles });
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DueAssessments } from '@/components/assessments/DueAssessments';
-import { Badge, Button, formatDate } from '@/components/ui';
+import { Badge, Button, formatDate, SkipLink } from '@/components/ui';
 import { api } from '@/lib/api';
 import { homeFor, useAuth } from '@/lib/auth';
 import { TYPE_LABELS, type LibraryType } from '@/lib/library';
@@ -55,6 +55,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      <SkipLink />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <span className="font-bold text-brand-900">Capacity Connect</span>
@@ -68,7 +69,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 focus:outline-none sm:py-12">
         <section aria-labelledby="hero">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Ministry of Earth Sciences</p>
           <h1 id="hero" className="mt-2 text-3xl font-bold sm:text-4xl">Capacity Connect</h1>

@@ -63,7 +63,7 @@ export default function LibraryItemPage() {
           {item.course && (
             <p className="mt-4 text-sm text-slate-600">
               Part of{' '}
-              <Link href={`/courses/${item.course.id}`} className="font-medium text-brand-600 hover:underline">
+              <Link href={`/courses/${item.course.id}`} className="font-medium text-brand-700 underline hover:no-underline">
                 {item.course.title}
               </Link>
               {item.module && ` › ${item.module.title}`}

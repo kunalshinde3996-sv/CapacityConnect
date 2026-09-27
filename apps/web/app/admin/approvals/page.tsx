@@ -111,7 +111,7 @@ function PendingUserCard({
           <p className="mt-2 text-sm text-slate-600">
             {[user.designation, user.institute?.name].filter(Boolean).join(' · ') || 'No institute given'}
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             Registered {new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
         </div>

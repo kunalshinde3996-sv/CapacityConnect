@@ -68,7 +68,7 @@ export default function TrainerMatchesPage() {
 function HowScoringWorks({ subject }: { subject: Subject }) {
   return (
     <details className="group rounded-xl bg-white p-4 text-sm ring-1 ring-slate-200">
-      <summary className="cursor-pointer font-semibold text-slate-800 marker:text-slate-400">
+      <summary className="cursor-pointer font-semibold text-slate-800 marker:text-slate-500">
         How the fit score is calculated
       </summary>
       <div className="mt-3 space-y-3 text-slate-600">
@@ -189,7 +189,7 @@ function BreakdownItem({ row }: { row: BreakdownRow }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-medium text-slate-900">{row.competencyName}</p>
         <span className="tabular-nums text-slate-900">
-          +{pct(row.contribution)} <span className="text-slate-400">of {pct(row.weight)}</span>
+          +{pct(row.contribution)} <span className="text-slate-500">of {pct(row.weight)}</span>
         </span>
       </div>
 

@@ -1,6 +1,6 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express from 'express';
+import express, { type Router } from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -19,14 +19,47 @@ import { libraryRouter } from './modules/courses/library.routes.js';
 import { filesRouter } from './modules/storage/files.routes.js';
 import { announcementsRouter, notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { applicationsRouter } from './modules/users/applications.routes.js';
-import { dashboardRouter } from './modules/users/dashboard.routes.js';
+import { auditLogRouter, dashboardRouter } from './modules/users/dashboard.routes.js';
 import { documentsRouter, profileRouter } from './modules/users/profile.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
+
+// Every API router and where it is mounted. Kept as one list so the route audit
+// (lib/routeTable.ts + tests/routes.audit.test.ts) sees exactly what the app serves.
+// Order matters: more specific prefixes (e.g. /api/me/claims) before /api/me.
+export const ROUTES: [string, Router][] = [
+  ['/api/health', healthRouter],
+  ['/api/auth', authRouter],
+  ['/api/users', usersRouter],
+  ['/api/subjects', subjectsRouter],
+  ['/api/files', filesRouter],
+  ['/api/me/notifications', notificationsRouter],
+  ['/api/me/claims', myClaimsRouter],
+  ['/api/me/courses', myCoursesRouter],
+  ['/api/me/assessments', myAssessmentsRouter],
+  ['/api/me', profileRouter],
+  ['/api/documents', documentsRouter],
+  ['/api/competencies', competenciesRouter],
+  ['/api/claims', claimsRouter],
+  ['/api/verifications', verificationsRouter],
+  ['/api/trainer-applications', applicationsRouter],
+  ['/api/dashboard', dashboardRouter],
+  ['/api/audit-log', auditLogRouter],
+  ['/api/skill-gaps', skillGapsRouter],
+  ['/api/announcements', announcementsRouter],
+  ['/api/courses/:courseId/assessments', courseAssessmentsRouter],
+  ['/api/courses/:courseId/progress', courseProgressRouter],
+  ['/api/courses', coursesRouter],
+  ['/api/assessments', assessmentsRouter],
+  ['/api/library', libraryRouter],
+];
 
 // Builds the Express app without starting a server, so tests can import it
 // and call it directly with Supertest.
 export function createApp() {
   const app = express();
+  // Behind the hosting proxies, trust exactly TRUST_PROXY_HOPS of them when reading the
+  // client IP from X-Forwarded-For (trusting more would let clients fake their IP).
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
 
   app.use(helmet());
   // credentials: true lets the browser send the HttpOnly refresh-token cookie.
@@ -34,29 +67,7 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
-  app.use('/api/health', healthRouter);
-  app.use('/api/auth', authRouter);
-  app.use('/api/users', usersRouter);
-  app.use('/api/subjects', subjectsRouter);
-  app.use('/api/files', filesRouter);
-  app.use('/api/me/notifications', notificationsRouter);
-  app.use('/api/me/claims', myClaimsRouter);
-  app.use('/api/me/courses', myCoursesRouter);
-  app.use('/api/me/assessments', myAssessmentsRouter);
-  app.use('/api/me', profileRouter);
-  app.use('/api/documents', documentsRouter);
-  app.use('/api/competencies', competenciesRouter);
-  app.use('/api/claims', claimsRouter);
-  app.use('/api/verifications', verificationsRouter);
-  app.use('/api/trainer-applications', applicationsRouter);
-  app.use('/api/dashboard', dashboardRouter);
-  app.use('/api/skill-gaps', skillGapsRouter);
-  app.use('/api/announcements', announcementsRouter);
-  app.use('/api/courses/:courseId/assessments', courseAssessmentsRouter);
-  app.use('/api/courses/:courseId/progress', courseProgressRouter);
-  app.use('/api/courses', coursesRouter);
-  app.use('/api/assessments', assessmentsRouter);
-  app.use('/api/library', libraryRouter);
+  for (const [prefix, router] of ROUTES) app.use(prefix, router);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

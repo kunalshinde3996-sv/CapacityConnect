@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { NotificationBell } from '@/components/NotificationBell';
-import { Button, Spinner } from '@/components/ui';
+import { Button, SkipLink, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { ADMIN_NAV as NAV } from '@/lib/nav';
 
@@ -41,6 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen">
+      <SkipLink />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/" className="font-bold text-brand-900">
@@ -80,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-6 focus:outline-none sm:py-8">{children}</main>
     </div>
   );
 }

@@ -148,3 +148,16 @@ export function VerificationBadge({ status }: { status: 'PENDING' | 'VERIFIED' |
 export function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 }
+
+// First element on every page: lets keyboard users jump past the navigation.
+// Invisible until it receives focus (first Tab press).
+export function SkipLink() {
+  return (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-brand-700 focus:shadow-lg focus:ring-2 focus:ring-brand-600"
+    >
+      Skip to main content
+    </a>
+  );
+}

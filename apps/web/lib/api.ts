@@ -132,6 +132,8 @@ export async function apiUpload<T>(path: string, form: FormData, method = 'POST'
 // The tab is opened first (synchronously) so phone browsers do not block it as a pop-up.
 export async function openFile(linkEndpoint: string) {
   const tab = window.open('', '_blank');
+  // The file tab gets no handle back to this app (prevents "reverse tabnabbing").
+  if (tab) tab.opener = null;
   try {
     const { url } = await api<{ url: string }>(linkEndpoint);
     const full = `${API_ORIGIN}${url}`;

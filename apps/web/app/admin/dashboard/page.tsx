@@ -23,19 +23,24 @@ interface Dashboard {
 
 const ROLE_LABELS: Record<string, string> = { TRAINEE: 'Trainees', TRAINER: 'Trainers', ADMIN: 'Admins' };
 
+// A figure in the <dl> list. Clickable cards keep valid list markup: the link sits on the
+// label and stretches over the whole card (after:absolute), so the card is one click
+// target but screen readers still hear a proper term/description pair.
 function Stat({ label, value, note, href }: { label: string; value: string | number; note?: string; href?: string }) {
-  const body = (
-    <>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">{label}</dt>
+  return (
+    <div className={`relative rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${href ? 'hover:ring-brand-600' : ''}`}>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">
+        {href ? (
+          <Link href={href} className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-600">
+            {label}
+          </Link>
+        ) : (
+          label
+        )}
+      </dt>
       <dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</dd>
       {note && <dd className="mt-0.5 text-xs text-slate-600">{note}</dd>}
-    </>
-  );
-  const cls = 'block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200';
-  return href ? (
-    <Link href={href} className={`${cls} hover:ring-brand-600`}>{body}</Link>
-  ) : (
-    <div className={cls}>{body}</div>
+    </div>
   );
 }
 

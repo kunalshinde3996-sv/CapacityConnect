@@ -25,3 +25,5 @@ services:
         generateValue: true # Render creates a long random value
       - key: CORS_ORIGINS # your Vercel URL, e.g. https://capacity-connect.vercel.app
         sync: false
+      - key: TRUST_PROXY_HOPS # Vercel proxy + Render load balancer: lets rate limiting see real client IPs
+        value: "2"

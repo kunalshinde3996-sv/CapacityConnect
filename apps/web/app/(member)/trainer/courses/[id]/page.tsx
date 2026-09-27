@@ -65,7 +65,7 @@ export default function ManageCoursePage() {
           </div>
           <p className="mt-1 text-sm text-slate-600">
             {course._count.enrollments} enrolled · {course.modules.length} modules ·{' '}
-            <Link href={`/courses/${course.id}`} className="text-brand-600 hover:underline">view as trainee</Link>
+            <Link href={`/courses/${course.id}`} className="text-brand-700 underline hover:no-underline">view as trainee</Link>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

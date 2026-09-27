@@ -3,12 +3,15 @@ import { createApp } from '../src/app.js';
 import type { Role, UserStatus } from '../src/generated/prisma/client.js';
 import { hashPassword } from '../src/lib/password.js';
 import { prisma } from '../src/lib/prisma.js';
+import { resetRateLimits } from '../src/lib/rateLimit.js';
 
 export const app = createApp();
 export const PASSWORD = 'Password@123';
 
 // Empties every table (except Prisma's migration history) so each test starts clean.
 export async function resetDb() {
+  // Tests log in constantly from one address: start every test with fresh rate limits.
+  resetRateLimits();
   if (!process.env.DATABASE_URL?.includes('_test')) {
     throw new Error('Refusing to wipe a database whose name does not contain "_test"');
   }

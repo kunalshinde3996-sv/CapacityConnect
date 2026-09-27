@@ -30,4 +30,5 @@ export const ADMIN_NAV: NavItem[] = [
   { href: '/admin/applications', label: 'Trainer applications' },
   { href: '/admin/subjects', label: 'Trainer matching' },
   { href: '/admin/announcements', label: 'Announcements' },
+  { href: '/admin/audit-log', label: 'Audit log' },
 ];

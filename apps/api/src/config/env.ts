@@ -17,6 +17,9 @@ const envSchema = z.object({
   // Folder for uploaded files (local-disk storage) and the maximum upload size.
   UPLOAD_DIR: z.string().default('uploads'),
   MAX_UPLOAD_MB: z.coerce.number().positive().max(500).default(50),
+  // How many proxies sit in front of the API, so req.ip is the real client (rate limiting).
+  // Local: 0. Render behind the Vercel proxy: 2 (Vercel's proxy + Render's load balancer).
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   // Email: without SMTP_HOST, emails are written to the console (dev and, for now, production).
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),

@@ -18,7 +18,8 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "hosted:migrate": "node --env-file=.env.deploy ../../node_modules/prisma/build/index.js migrate deploy",
-    "hosted:seed": "node --env-file=.env.deploy --import tsx prisma/seed.ts"
+    "hosted:seed": "node --env-file=.env.deploy --import tsx prisma/seed.ts",
+    "routes": "tsx scripts/print-routes.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

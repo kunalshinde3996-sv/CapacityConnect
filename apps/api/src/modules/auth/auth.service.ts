@@ -2,6 +2,7 @@ import { audit } from '../../lib/audit.js';
 import { AppError } from '../../lib/errors.js';
 import { DUMMY_HASH, hashPassword, verifyPassword } from '../../lib/password.js';
 import { prisma } from '../../lib/prisma.js';
+import { loginFailureLimiter, tooManyRequests } from '../../lib/rateLimit.js';
 import { generateRefreshToken, hashToken, REFRESH_TOKEN_TTL_MS, signAccessToken } from '../../lib/tokens.js';
 import { publicUserSelect, type PublicUser } from '../users/users.select.js';
 import type { LoginInput, RegisterInput } from './auth.schemas.js';
@@ -50,6 +51,12 @@ export async function register(input: RegisterInput): Promise<PublicUser> {
 }
 
 export async function login(input: LoginInput): Promise<Session> {
+  // Brute-force protection: after too many failed attempts on this email, stop checking
+  // passwords for a while (even a correct one), whatever IP the attempts come from.
+  const failureKey = `login:${input.email}`;
+  const wait = loginFailureLimiter.blockedFor(failureKey);
+  if (wait !== null) throw tooManyRequests(wait);
+
   const user = await prisma.user.findUnique({
     where: { email: input.email },
     select: { id: true, passwordHash: true, status: true },
@@ -58,8 +65,10 @@ export async function login(input: LoginInput): Promise<Session> {
   // Always run bcrypt, even for unknown emails, so response time does not reveal which emails exist.
   const passwordOk = await verifyPassword(input.password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !passwordOk) {
+    loginFailureLimiter.hit(failureKey);
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
   }
+  loginFailureLimiter.reset(failureKey);
 
   // Only reveal the account status to someone who knows the password.
   const blocked = BLOCKED_STATUS[user.status];

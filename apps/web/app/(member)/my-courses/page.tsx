@@ -42,7 +42,7 @@ export default function MyCoursesPage() {
       {items?.length === 0 && (
         <EmptyState>
           You are not enrolled in any course yet.{' '}
-          <Link href="/courses" className="font-semibold text-brand-600 hover:underline">
+          <Link href="/courses" className="font-semibold text-brand-700 underline hover:no-underline">
             Browse courses
           </Link>
         </EmptyState>

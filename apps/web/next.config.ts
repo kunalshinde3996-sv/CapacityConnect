@@ -16,8 +16,21 @@ if (process.env.VERCEL_ENV === 'production' && apiOrigin.includes('localhost')) 
   throw new Error('Set NEXT_PUBLIC_API_ORIGIN (the Render API URL) in the Vercel project settings before deploying.');
 }
 
+// Basic security headers for every page. (A strict Content-Security-Policy would also
+// need nonces for Next.js's inline scripts; out of scope for this prototype.)
+const securityHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'DENY' }, // no embedding in other sites (clickjacking)
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
+  },
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${apiOrigin}/api/:path*` }];
   },
