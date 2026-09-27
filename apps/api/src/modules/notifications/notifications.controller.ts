@@ -11,7 +11,7 @@ export async function list(req: Request, res: Response) {
 }
 
 export async function unread(req: Request, res: Response) {
-  res.json({ unread: await notificationsService.unreadCount(req.user!.id) });
+  res.json({ unread: await notificationsService.unreadCount(req.user!.id, req.user!.role) });
 }
 
 export async function markRead(req: Request, res: Response) {

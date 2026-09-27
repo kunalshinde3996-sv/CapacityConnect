@@ -8,7 +8,7 @@ import * as controller from './notifications.controller.js';
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
 notificationsRouter.get('/', controller.list); // also creates due deadline reminders for trainees
-notificationsRouter.get('/unread-count', controller.unread); // cheap; the web app polls this
+notificationsRouter.get('/unread-count', controller.unread); // polled by the web app; also creates due reminders
 notificationsRouter.post('/read-all', controller.markAllRead);
 notificationsRouter.post('/:id/read', controller.markRead);
 

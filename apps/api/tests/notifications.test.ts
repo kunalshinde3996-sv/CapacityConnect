@@ -137,6 +137,14 @@ describe('deadline within 24 hours', () => {
     expect(await prisma.notification.count()).toBe(0);
   });
 
+  it('the unread count (polled by the bell) creates the reminder too, so the badge is right at once', async () => {
+    const { due } = await setupDeadline(3);
+    const res = await request(app).get('/api/me/notifications/unread-count').set(auth(due.token));
+    expect(res.body.unread).toBe(1);
+    // Polling again does not create a second reminder
+    expect((await request(app).get('/api/me/notifications/unread-count').set(auth(due.token))).body.unread).toBe(1);
+  });
+
   it('opening the notification list creates the reminder (the free host may have been asleep)', async () => {
     const { due } = await setupDeadline(3);
     const res = await request(app).get('/api/me/notifications').set(auth(due.token));

@@ -89,7 +89,10 @@ export async function listForUser(userId: string, role: string) {
   return { items: items.map(({ dedupeKey: _key, ...n }) => n), unread };
 }
 
-export function unreadCount(userId: string) {
+// Also creates a trainee's due reminders first, so the bell's badge is right as soon as a
+// page loads (the host may have slept through the last sweep).
+export async function unreadCount(userId: string, role: string) {
+  if (role === 'TRAINEE') await deadlineSweep(userId);
   return prisma.notification.count({ where: { userId, readAt: null } });
 }
 

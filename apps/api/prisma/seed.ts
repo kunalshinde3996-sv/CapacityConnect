@@ -17,6 +17,7 @@ import { levelUpdates, scoreAttempt, strengthOf } from '../src/services/assessme
 import { validateRequirements } from '../src/services/matching/matching.js';
 import { assessments as seedAssessmentList } from './seed-assessments.js';
 import { announcements as seedAnnouncementList } from './seed-announcements.js';
+import { CHECKUP_DEADLINE_HOURS, CHECKUP_TITLE, checkupQuestions, CLOSED_QUIZ, DEMO_COMPETENCY, DEMO_COURSE, DEMO_STATION, DEMO_TRAINEE, IMPROVED_COUNT } from './seed-demo.js';
 import { courseFeedback } from './seed-feedback.js';
 import {
   competencies,
@@ -237,6 +238,7 @@ async function main() {
   }
 
   // ── Trainees ──────────────────────────────────────────────
+  const teachableCompetencies = [...new Set(subjects.flatMap((s) => s.requirements.map(([name]) => name)))];
   const random = seededRandom(2026);
   const pick = <T,>(items: readonly T[]) => items[Math.floor(random() * items.length)]!;
   const traineeLogins: { name: string; email: string; status: UserStatus }[] = [];
@@ -267,7 +269,13 @@ async function main() {
     if (status === 'APPROVED') {
       const count = 3 + Math.floor(random() * 3);
       const chosen = new Set<string>();
-      while (chosen.size < count) chosen.add(pick(competencies).name);
+      // Only competencies some subject requires, so every gap in the skill-gap view is actionable.
+      while (chosen.size < count) chosen.add(pick(teachableCompetencies));
+      // Remove self-assessed skills from earlier runs that were not chosen this time,
+      // so re-running the seed always gives the same state.
+      await prisma.userCompetency.deleteMany({
+        where: { userId: user.id, source: 'SELF_ASSESSED', competencyId: { notIn: [...chosen].map(competencyId) } },
+      });
       for (const compName of chosen) {
         const level = 1 + Math.floor(random() * 3); // trainees are mostly level 1-3
         const source: CompetencySource = 'SELF_ASSESSED';
@@ -287,6 +295,7 @@ async function main() {
   await seedCourses(competencyId);
   await seedLibrary(competencyId);
   await seedAssessments();
+  await seedDemoScenario();
   await seedFeedback();
   await seedCompletions();
   await seedCommunication(admin.id);
@@ -612,6 +621,113 @@ async function seedCompletions() {
           verifiedById: course.trainerId,
           verifiedAt: completedAt,
         },
+      });
+    }
+  }
+}
+
+// The DEMO.md scenario at NCPOR Goa (see prisma/seed-demo.ts). Runs after the random
+// assessment simulation and replaces it for the Goa trainees, so the story is exact.
+async function seedDemoScenario() {
+  const station = await prisma.institute.findUniqueOrThrow({ where: { code: DEMO_STATION } });
+  const aws = await prisma.competency.findUniqueOrThrow({ where: { name: DEMO_COMPETENCY } });
+  const course = await prisma.course.findFirstOrThrow({ where: { title: DEMO_COURSE } });
+  const trainer = await prisma.user.findUniqueOrThrow({ where: { id: course.trainerId! } });
+  const competencyIds = new Map((await prisma.competency.findMany()).map((c) => [c.name, c.id]));
+
+  // Goa trainees in the story: approved demo trainees, except Rohan (his trainer application
+  // is a separate demo). The demo trainee is never among those who already improved.
+  const goa = await prisma.user.findMany({
+    where: { role: 'TRAINEE', status: 'APPROVED', instituteId: station.id, email: { endsWith: '.example', not: 'rohan.patil@ncpor.example' } },
+    orderBy: { email: 'asc' },
+  });
+  // The rest (including the demo trainee) have not taken the course questionnaire yet.
+  const improved = goa.filter((u) => u.email !== DEMO_TRAINEE).slice(0, IMPROVED_COUNT);
+
+  // Everyone in the story is enrolled in the AWS course.
+  for (const u of goa) {
+    await prisma.enrollment.upsert({
+      where: { userId_courseId: { userId: u.id, courseId: course.id } },
+      update: { status: 'ENROLLED', completedAt: null },
+      create: { userId: u.id, courseId: course.id, enrolledAt: new Date(Date.now() - 30 * 86_400_000) },
+    });
+  }
+
+  // The open check-up: due in CHECKUP_DEADLINE_HOURS, so the 24-hour reminder is active.
+  const checkupData = {
+    courseId: course.id,
+    title: CHECKUP_TITLE,
+    description: 'Five quick questions on calibration and data checks. Due soon!',
+    deadline: new Date(Date.now() + CHECKUP_DEADLINE_HOURS * 3_600_000),
+    durationMinutes: 15,
+    passPercent: 60,
+    published: true,
+    createdById: trainer.id,
+  };
+  const existingCheckup = await prisma.assessment.findFirst({ where: { courseId: course.id, title: CHECKUP_TITLE } });
+  if (existingCheckup) {
+    await prisma.assessmentAttempt.deleteMany({ where: { assessmentId: existingCheckup.id } });
+    await prisma.question.deleteMany({ where: { assessmentId: existingCheckup.id } });
+  }
+  const checkup = existingCheckup
+    ? await prisma.assessment.update({ where: { id: existingCheckup.id }, data: checkupData })
+    : await prisma.assessment.create({ data: checkupData });
+  for (const [i, [text, competency, options, correctIndex, explanation]] of checkupQuestions.entries()) {
+    const shift = (i * 2 + 1) % options.length; // correct answer in varying positions
+    await prisma.question.create({
+      data: {
+        assessmentId: checkup.id,
+        order: i + 1,
+        text,
+        competencyId: competencyIds.get(competency)!,
+        options: options.map((_, j) => ({ id: OPTION_IDS[j]!, text: options[(j + shift) % options.length]! })),
+        correctOptionId: OPTION_IDS[(correctIndex - shift + options.length) % options.length]!,
+        explanation,
+      },
+    });
+  }
+
+  // Before the course: every Goa trainee is below target in AWS Calibration.
+  for (const [i, u] of goa.entries()) {
+    const level = improved.includes(u) ? 1 : u.email === DEMO_TRAINEE ? 2 : 1 + (i % 2);
+    await prisma.userCompetency.upsert({
+      where: { userId_competencyId: { userId: u.id, competencyId: aws.id } },
+      update: { level, source: 'SELF_ASSESSED' },
+      create: { userId: u.id, competencyId: aws.id, level, source: 'SELF_ASSESSED' },
+    });
+  }
+
+  // The closed course questionnaire: the "improved" trainees answered everything correctly,
+  // the waiting ones have not taken it. Levels are updated by the real rule.
+  const quiz = await prisma.assessment.findFirstOrThrow({ where: { courseId: course.id, title: CLOSED_QUIZ }, include: { questions: true } });
+  await prisma.assessmentAttempt.deleteMany({ where: { assessmentId: quiz.id, userId: { in: goa.map((u) => u.id) } } });
+  for (const u of improved) {
+    const answers = Object.fromEntries(quiz.questions.map((q) => [q.id, q.correctOptionId]));
+    const scored = scoreAttempt(quiz.questions, answers);
+    const current = await prisma.userCompetency.findMany({ where: { userId: u.id } });
+    const changes = levelUpdates(scored.competencyResults, new Map(current.map((c) => [c.competencyId, { level: c.level, source: c.source }])));
+    const byCompetency = new Map(changes.map((c) => [c.competencyId, c]));
+    const submittedAt = new Date(quiz.deadline.getTime() - 2 * 86_400_000);
+    await prisma.assessmentAttempt.create({
+      data: {
+        assessmentId: quiz.id,
+        userId: u.id,
+        startedAt: new Date(submittedAt.getTime() - 12 * 60_000),
+        submittedAt,
+        score: scored.score,
+        maxScore: scored.maxScore,
+        answers: scored.answers as unknown as object,
+        competencyResults: scored.competencyResults.map((r) => {
+          const c = byCompetency.get(r.competencyId);
+          return { ...r, strength: strengthOf(r.percent), level: c ? { before: c.before, after: c.after, measured: c.measured, write: c.write, levelChanged: c.levelChanged, reason: c.reason } : null };
+        }),
+      },
+    });
+    for (const c of changes.filter((x) => x.write)) {
+      await prisma.userCompetency.upsert({
+        where: { userId_competencyId: { userId: u.id, competencyId: c.competencyId } },
+        update: { level: c.after, source: 'ASSESSMENT' },
+        create: { userId: u.id, competencyId: c.competencyId, level: c.after, source: 'ASSESSMENT' },
       });
     }
   }
