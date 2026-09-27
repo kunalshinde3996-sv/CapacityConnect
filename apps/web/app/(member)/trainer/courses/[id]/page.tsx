@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { TrainerAssessmentList } from '@/components/assessments/TrainerAssessmentList';
 import { CourseForm } from '@/components/courses/CourseForm';
 import { ModulesEditor } from '@/components/courses/ModulesEditor';
 import { CourseMaterials } from '@/components/library/CourseMaterials';
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'overview', label: 'Details' },
   { id: 'modules', label: 'Modules' },
   { id: 'library', label: 'Library' },
+  { id: 'assessments', label: 'Assessments' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -117,6 +119,7 @@ export default function ManageCoursePage() {
           <CourseMaterials courseId={course.id} refreshKey={libraryVersion} />
         </div>
       )}
+      {tab === 'assessments' && <TrainerAssessmentList courseId={course.id} />}
     </>
   );
 }

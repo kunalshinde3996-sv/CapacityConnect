@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import { type CompetencySource, PrismaClient, type UserStatus } from '../src/generated/prisma/client.js';
+import { levelUpdates, scoreAttempt, strengthOf } from '../src/services/assessment/scoring.js';
 import { validateRequirements } from '../src/services/matching/matching.js';
+import { assessments as seedAssessmentList } from './seed-assessments.js';
 import {
   competencies,
   courses,
@@ -279,6 +281,7 @@ async function main() {
   // ── Courses and enrolments ────────────────────────────────
   await seedCourses(competencyId);
   await seedLibrary(competencyId);
+  await seedAssessments();
 
   // ── Summary ───────────────────────────────────────────────
   const counts = {
@@ -292,6 +295,8 @@ async function main() {
     courses: await prisma.course.count(),
     enrolments: await prisma.enrollment.count(),
     libraryItems: await prisma.libraryItem.count(),
+    assessments: await prisma.assessment.count(),
+    attempts: await prisma.assessmentAttempt.count(),
   };
 
   console.log(`\nSeed complete in ${((Date.now() - started) / 1000).toFixed(1)}s`);
@@ -385,6 +390,140 @@ async function seedCourses(competencyId: (name: string) => string) {
     }
   }
   return courseIds;
+}
+
+// ── Assessments with simulated attempts ────────────────────
+// Scored with the same pure functions as the API (services/assessment/scoring.ts), so the
+// seeded results, per-competency breakdowns and skill levels follow the real rules.
+
+const OPTION_IDS = ['a', 'b', 'c', 'd'];
+
+// A deadline `days` from today at 17:30 local time (negative = in the past).
+function dayAt(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(17, 30, 0, 0);
+  return d;
+}
+
+async function seedAssessments() {
+  const random = seededRandom(404);
+  const competencyIds = new Map((await prisma.competency.findMany()).map((c) => [c.name, c.id]));
+  const demoTrainees = await prisma.user.findMany({
+    where: { role: 'TRAINEE', email: { endsWith: '.example' } },
+    orderBy: { email: 'asc' },
+    select: { id: true, email: true },
+  });
+  // Levels measured by earlier seed runs are removed, so every run gives the same results.
+  await prisma.userCompetency.deleteMany({ where: { source: 'ASSESSMENT', userId: { in: demoTrainees.map((t) => t.id) } } });
+  // Each demo trainee gets a fixed "ability" (chance of answering correctly).
+  const ability = new Map(demoTrainees.map((t) => [t.id, 0.45 + random() * 0.5]));
+  const journey = demoTrainees.find((t) => t.email === JOURNEY_TRAINEE);
+
+  // Oldest deadlines first, so skill levels build up in the order attempts happened.
+  for (const a of [...seedAssessmentList].sort((x, y) => x.deadlineDays - y.deadlineDays)) {
+    const course = await prisma.course.findFirstOrThrow({ where: { title: a.course } });
+    const trainer = await prisma.user.findUniqueOrThrow({ where: { id: course.trainerId! } });
+    const deadline = dayAt(a.deadlineDays);
+    const data = {
+      courseId: course.id,
+      title: a.title,
+      description: a.description,
+      deadline,
+      durationMinutes: a.durationMinutes,
+      passPercent: 60,
+      published: a.published,
+      createdById: trainer.id,
+    };
+
+    // Reset: re-create questions and attempts on every run.
+    const existing = await prisma.assessment.findFirst({ where: { courseId: course.id, title: a.title } });
+    if (existing) {
+      await prisma.assessmentAttempt.deleteMany({ where: { assessmentId: existing.id } });
+      await prisma.question.deleteMany({ where: { assessmentId: existing.id } });
+    }
+    const assessment = existing
+      ? await prisma.assessment.update({ where: { id: existing.id }, data })
+      : await prisma.assessment.create({ data });
+
+    const questions = [];
+    for (const [i, [text, competency, options, correctIndex, explanation]] of a.questions.entries()) {
+      // Rotate the options by a hash of the question text, so the correct answer's position
+      // looks random (no a-b-c-d pattern) but is the same on every seed run.
+      const shift = [...text].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % options.length;
+      const rotated = options.map((_, j) => options[(j + shift) % options.length]!);
+      const correctPosition = (correctIndex - shift + options.length) % options.length;
+      questions.push(
+        await prisma.question.create({
+          data: {
+            assessmentId: assessment.id,
+            order: i + 1,
+            text,
+            competencyId: competencyIds.get(competency)!,
+            options: rotated.map((t, j) => ({ id: OPTION_IDS[j]!, text: t })),
+            correctOptionId: OPTION_IDS[correctPosition]!,
+            marks: 1,
+            explanation,
+          },
+        }),
+      );
+    }
+    if (!a.published) continue;
+
+    // Who submitted: a deterministic share of the enrolled demo trainees. The journey
+    // trainee has results for closed assessments, and open ones are left for the demo.
+    const enrolled = await prisma.enrollment.findMany({
+      where: { courseId: course.id, status: { not: 'DROPPED' }, userId: { in: demoTrainees.map((t) => t.id) } },
+      orderBy: { user: { email: 'asc' } },
+    });
+    const isOpen = deadline.getTime() > Date.now();
+    for (const e of enrolled) {
+      const isJourney = e.userId === journey?.id;
+      const attempts = isJourney ? !isOpen : random() < a.attemptShare;
+      if (!attempts) continue;
+
+      const answers: Record<string, string> = {};
+      for (const q of questions) {
+        const competencyName = [...competencyIds].find(([, cid]) => cid === q.competencyId)![0];
+        const p = Math.min(0.97, ability.get(e.userId)! * (a.difficulty?.[competencyName] ?? 1) + 0.1);
+        const wrong = OPTION_IDS.filter((o) => o !== q.correctOptionId);
+        answers[q.id] = random() < p ? q.correctOptionId : wrong[Math.floor(random() * wrong.length)]!;
+      }
+      const scored = scoreAttempt(questions, answers);
+      const current = await prisma.userCompetency.findMany({ where: { userId: e.userId, competencyId: { in: scored.competencyResults.map((r) => r.competencyId) } } });
+      const changes = levelUpdates(scored.competencyResults, new Map(current.map((c) => [c.competencyId, { level: c.level, source: c.source }])));
+      const byCompetency = new Map(changes.map((c) => [c.competencyId, c]));
+
+      const end = Math.min(deadline.getTime(), Date.now()) - Math.floor(random() * 4 * 86_400_000) - 3_600_000;
+      const startedAt = new Date(end - (8 + Math.floor(random() * 10)) * 60_000);
+      await prisma.assessmentAttempt.create({
+        data: {
+          assessmentId: assessment.id,
+          userId: e.userId,
+          startedAt,
+          submittedAt: new Date(end),
+          score: scored.score,
+          maxScore: scored.maxScore,
+          answers: scored.answers as unknown as object,
+          competencyResults: scored.competencyResults.map((r) => {
+            const c = byCompetency.get(r.competencyId);
+            return {
+              ...r,
+              strength: strengthOf(r.percent),
+              level: c ? { before: c.before, after: c.after, measured: c.measured, write: c.write, levelChanged: c.levelChanged, reason: c.reason } : null,
+            };
+          }),
+        },
+      });
+      for (const c of changes.filter((x) => x.write)) {
+        await prisma.userCompetency.upsert({
+          where: { userId_competencyId: { userId: e.userId, competencyId: c.competencyId } },
+          update: { level: c.after, source: 'ASSESSMENT' },
+          create: { userId: e.userId, competencyId: c.competencyId, level: c.after, source: 'ASSESSMENT' },
+        });
+      }
+    }
+  }
 }
 
 const MIME_BY_EXT: Record<string, string> = { '.pdf': 'application/pdf', '.mp4': 'video/mp4' };

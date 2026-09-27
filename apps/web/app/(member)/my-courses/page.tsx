@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { DueAssessments } from '@/components/assessments/DueAssessments';
 import { Alert, Badge, EmptyState, formatDate, PageHeader, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { courseDates } from '@/lib/courses';
@@ -35,6 +36,7 @@ export default function MyCoursesPage() {
   return (
     <>
       <PageHeader title="My courses" description="Courses you are enrolled in." />
+      <DueAssessments />
       {error && <Alert>{error}</Alert>}
       {!items && !error && <Spinner />}
       {items?.length === 0 && (
