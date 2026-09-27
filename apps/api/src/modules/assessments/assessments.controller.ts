@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import type { Actor } from '../courses/courses.service.js';
 import * as assessmentsService from './assessments.service.js';
+import * as monitoringService from './monitoring.service.js';
 
 const actor = (req: Request) => req.user! as Actor;
 const p = (req: Request, name: string) => req.params[name] as string;
@@ -39,4 +40,8 @@ export async function result(req: Request, res: Response) {
 
 export async function mine(req: Request, res: Response) {
   res.json({ assessments: await assessmentsService.myAssessments(req.user!.id) });
+}
+
+export async function progress(req: Request, res: Response) {
+  res.json(await monitoringService.courseProgress(actor(req), p(req, 'courseId')));
 }

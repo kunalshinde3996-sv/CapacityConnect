@@ -8,6 +8,7 @@ import { CourseForm } from '@/components/courses/CourseForm';
 import { ModulesEditor } from '@/components/courses/ModulesEditor';
 import { CourseMaterials } from '@/components/library/CourseMaterials';
 import { UploadForm } from '@/components/library/UploadForm';
+import { ClassProgress } from '@/components/monitoring/ClassProgress';
 import { useSubmit } from '@/lib/useSubmit';
 import { Alert, Badge, Button, Card, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
@@ -18,11 +19,12 @@ const TABS = [
   { id: 'modules', label: 'Modules' },
   { id: 'library', label: 'Library' },
   { id: 'assessments', label: 'Assessments' },
+  { id: 'progress', label: 'Class progress' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
-// Where a trainer manages one course. Later phases add Library, Assessments,
-// Class progress and Feedback tabs.
+// Where a trainer manages one course: details, modules, library, assessments,
+// class progress and feedback.
 export default function ManageCoursePage() {
   const { id } = useParams<{ id: string }>();
   const [course, setCourse] = useState<CourseDetail | null>(null);
@@ -120,6 +122,7 @@ export default function ManageCoursePage() {
         </div>
       )}
       {tab === 'assessments' && <TrainerAssessmentList courseId={course.id} />}
+      {tab === 'progress' && <ClassProgress courseId={course.id} />}
     </>
   );
 }

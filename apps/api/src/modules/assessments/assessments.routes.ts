@@ -28,3 +28,7 @@ assessmentsRouter.get('/:id/result', trainee, controller.result);
 // /api/me/assessments - a trainee's assessments across enrolled courses
 export const myAssessmentsRouter = Router();
 myAssessmentsRouter.get('/', requireAuth, trainee, controller.mine);
+
+// /api/courses/:courseId/progress - trainer monitoring (course trainer or admin)
+export const courseProgressRouter = Router({ mergeParams: true });
+courseProgressRouter.get('/', requireAuth, staff, controller.progress);

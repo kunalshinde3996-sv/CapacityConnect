@@ -4,7 +4,12 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import { assessmentsRouter, courseAssessmentsRouter, myAssessmentsRouter } from './modules/assessments/assessments.routes.js';
+import {
+  assessmentsRouter,
+  courseAssessmentsRouter,
+  courseProgressRouter,
+  myAssessmentsRouter,
+} from './modules/assessments/assessments.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { claimsRouter, competenciesRouter, myClaimsRouter, verificationsRouter } from './modules/competency/claims.routes.js';
@@ -42,6 +47,7 @@ export function createApp() {
   app.use('/api/verifications', verificationsRouter);
   app.use('/api/trainer-applications', applicationsRouter);
   app.use('/api/courses/:courseId/assessments', courseAssessmentsRouter);
+  app.use('/api/courses/:courseId/progress', courseProgressRouter);
   app.use('/api/courses', coursesRouter);
   app.use('/api/assessments', assessmentsRouter);
   app.use('/api/library', libraryRouter);
