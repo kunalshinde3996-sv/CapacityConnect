@@ -12,7 +12,8 @@ const envSchema = z.object({
   // Comma-separated list of browser origins allowed to call the API (the Next.js app).
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  // bcrypt work factor. 10 in real use; tests lower it to 4 so they run fast.
+  BCRYPT_COST: z.coerce.number().int().min(4).max(14).default(10),
 });
 
 const parsed = envSchema.safeParse(process.env);

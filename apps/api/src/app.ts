@@ -4,7 +4,9 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { usersRouter } from './modules/users/users.routes.js';
 
 // Builds the Express app without starting a server, so tests can import it
 // and call it directly with Supertest.
@@ -18,6 +20,8 @@ export function createApp() {
   app.use(cookieParser());
 
   app.use('/api/health', healthRouter);
+  app.use('/api/auth', authRouter);
+  app.use('/api/users', usersRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -5,7 +5,7 @@ import type { z } from 'zod';
 // (typed, stripped of unknown keys) value. Errors go to the central handler.
 export function validateBody(schema: z.ZodType): RequestHandler {
   return (req, _res, next) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req.body ?? {}); // Express 5 leaves body undefined when none is sent
     if (!result.success) return next(result.error);
     req.body = result.data;
     next();
