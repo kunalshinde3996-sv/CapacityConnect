@@ -7,7 +7,9 @@
 // Note: re-running resets demo users' passwords and statuses (e.g. a pending user you
 // approved during a demo goes back to PENDING). Users you created yourself are untouched.
 
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 import { type CompetencySource, PrismaClient, type UserStatus } from '../src/generated/prisma/client.js';
@@ -19,6 +21,7 @@ import {
   documentFiles,
   institutes,
   interestPool,
+  libraryItems,
   PENDING_TRAINEE_COUNT,
   subjects,
   traineeDesignations,
@@ -29,6 +32,7 @@ import {
 
 // Demo files live in apps/api/demo-files; the API copies them into storage at startup
 // (src/modules/storage/demoFiles.ts). The seed only records their storage keys.
+const DEMO_FILES_DIR = fileURLToPath(new URL('../demo-files/', import.meta.url));
 const demoFileKey = (fileName: string | undefined) => (fileName ? `demo/${fileName}` : null);
 
 // Variables already set in the shell win over .env, so a hosted DATABASE_URL
@@ -274,6 +278,7 @@ async function main() {
 
   // ── Courses and enrolments ────────────────────────────────
   await seedCourses(competencyId);
+  await seedLibrary(competencyId);
 
   // ── Summary ───────────────────────────────────────────────
   const counts = {
@@ -286,6 +291,7 @@ async function main() {
     claims: await prisma.trainerCompetency.count(),
     courses: await prisma.course.count(),
     enrolments: await prisma.enrollment.count(),
+    libraryItems: await prisma.libraryItem.count(),
   };
 
   console.log(`\nSeed complete in ${((Date.now() - started) / 1000).toFixed(1)}s`);
@@ -379,6 +385,40 @@ async function seedCourses(competencyId: (name: string) => string) {
     }
   }
   return courseIds;
+}
+
+const MIME_BY_EXT: Record<string, string> = { '.pdf': 'application/pdf', '.mp4': 'video/mp4' };
+
+// Library items backed by the demo files; matched on their storage key.
+async function seedLibrary(competencyId: (name: string) => string) {
+  for (const item of libraryItems) {
+    const uploader = await prisma.user.findUniqueOrThrow({ where: { email: item.uploader } });
+    const course = item.course ? await prisma.course.findFirst({ where: { title: item.course } }) : null;
+    const module = course && item.moduleOrder
+      ? await prisma.courseModule.findUnique({ where: { courseId_order: { courseId: course.id, order: item.moduleOrder } } })
+      : null;
+    const fileKey = demoFileKey(item.file)!;
+    const data = {
+      title: item.title,
+      description: item.description,
+      type: item.type,
+      fileKey,
+      mimeType: MIME_BY_EXT[path.extname(item.file)] ?? 'application/octet-stream',
+      sizeBytes: statSync(path.join(DEMO_FILES_DIR, item.file)).size,
+      isPublished: true,
+      uploadedById: uploader.id,
+      courseId: course?.id ?? null,
+      moduleId: module?.id ?? null,
+    };
+    const existing = await prisma.libraryItem.findFirst({ where: { fileKey } });
+    const saved = existing
+      ? await prisma.libraryItem.update({ where: { id: existing.id }, data })
+      : await prisma.libraryItem.create({ data });
+    await prisma.libraryItemCompetency.deleteMany({ where: { libraryItemId: saved.id } });
+    await prisma.libraryItemCompetency.createMany({
+      data: item.competencies.map((name) => ({ libraryItemId: saved.id, competencyId: competencyId(name) })),
+    });
+  }
 }
 
 // Certificates, qualifications, experience and a trainer application for one trainee.

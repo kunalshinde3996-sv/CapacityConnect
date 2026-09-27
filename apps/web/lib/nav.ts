@@ -10,11 +10,14 @@ export const NAV: Record<Exclude<Role, 'ADMIN'>, NavItem[]> = {
   TRAINEE: [
     { href: '/my-courses', label: 'My courses' },
     { href: '/courses', label: 'Browse courses' },
+    { href: '/library', label: 'Library' },
     { href: '/profile', label: 'Profile' },
   ],
   TRAINER: [
     { href: '/trainer/courses', label: 'My teaching' },
     { href: '/courses', label: 'Course catalogue' },
+    { href: '/trainer/library', label: 'My uploads' },
+    { href: '/library', label: 'Library' },
     { href: '/profile', label: 'Profile & claims' },
   ],
 };

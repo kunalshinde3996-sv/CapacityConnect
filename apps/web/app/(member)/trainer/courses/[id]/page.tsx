@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CourseForm } from '@/components/courses/CourseForm';
 import { ModulesEditor } from '@/components/courses/ModulesEditor';
+import { CourseMaterials } from '@/components/library/CourseMaterials';
+import { UploadForm } from '@/components/library/UploadForm';
 import { useSubmit } from '@/lib/useSubmit';
 import { Alert, Badge, Button, Card, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
@@ -13,6 +15,7 @@ import { type CourseDetail, STATUS_TONE } from '@/lib/courses';
 const TABS = [
   { id: 'overview', label: 'Details' },
   { id: 'modules', label: 'Modules' },
+  { id: 'library', label: 'Library' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -23,6 +26,7 @@ export default function ManageCoursePage() {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
+  const [libraryVersion, setLibraryVersion] = useState(0); // bump to reload course materials
   const status = useSubmit();
 
   const show = useCallback((d: { course: CourseDetail }) => setCourse(d.course), []);
@@ -104,6 +108,14 @@ export default function ManageCoursePage() {
         <Card title="Modules" description="Trainees see modules in this order.">
           <ModulesEditor courseId={course.id} modules={course.modules} onChanged={reload} />
         </Card>
+      )}
+      {tab === 'library' && (
+        <div className="space-y-5">
+          <Card title="Upload to this course">
+            <UploadForm course={course} onUploaded={() => setLibraryVersion((v) => v + 1)} />
+          </Card>
+          <CourseMaterials courseId={course.id} refreshKey={libraryVersion} />
+        </div>
       )}
     </>
   );

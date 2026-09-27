@@ -75,6 +75,9 @@ export const files = {
   png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]),
   // A Windows program ("MZ" header) renamed to .pdf must be rejected
   fakePdf: Buffer.concat([Buffer.from('MZ'), Buffer.alloc(200)]),
+  mp4: Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom'), Buffer.alloc(64)]),
+  // A .docx is a zip archive with a word/ folder inside
+  docx: Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(26), Buffer.from('word/document.xml'), Buffer.alloc(32)]),
 };
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });

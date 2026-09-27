@@ -457,3 +457,26 @@ export const courses: SeedCourse[] = [
     enrolFraction: 0,
   },
 ];
+
+// ── Trainer library (Phase 2) ──────────────────────────────
+export interface SeedLibraryItem {
+  file: string; // in apps/api/demo-files
+  title: string;
+  type: 'VIDEO' | 'SLIDES' | 'DOCUMENT';
+  description: string;
+  uploader: string;
+  course?: string;
+  moduleOrder?: number;
+  competencies: string[];
+}
+
+export const libraryItems: SeedLibraryItem[] = [
+  { file: 'lib-dwr-intro.mp4', title: 'How a Doppler Weather Radar scans', type: 'VIDEO', description: 'Short animated introduction: beam rotation, reflectivity and radial velocity.', uploader: 'meera.kulkarni@imd.example', course: 'DWR Operations for Forecasters', moduleOrder: 1, competencies: ['Radar Meteorology'] },
+  { file: 'lib-dwr-scan-strategy.pdf', title: 'DWR scan strategies and products', type: 'SLIDES', description: 'Volume coverage patterns, key products and quality checks.', uploader: 'meera.kulkarni@imd.example', course: 'DWR Operations for Forecasters', moduleOrder: 2, competencies: ['Radar Meteorology', 'Data Quality Control'] },
+  { file: 'lib-nowcasting-notes.pdf', title: 'Nowcasting thunderstorms: field notes', type: 'DOCUMENT', description: 'The 0-3 hour window and a checklist before issuing a nowcast.', uploader: 'arjun.menon@imd.example', course: 'DWR Operations for Forecasters', moduleOrder: 4, competencies: ['Nowcasting', 'Public Risk Communication'] },
+  { file: 'lib-argo-qc-checklist.pdf', title: 'Argo float data: QC checklist', type: 'DOCUMENT', description: 'Real-time and delayed-mode quality checks with flag meanings.', uploader: 'priya.nair@incois.example', course: 'Ocean Data Analysis with Python', moduleOrder: 2, competencies: ['Ocean Data Analysis', 'Data Quality Control'] },
+  { file: 'lib-ocean-python-slides.pdf', title: 'Ocean data analysis with Python: first steps', type: 'SLIDES', description: 'xarray, pandas and cartopy for a first Argo analysis.', uploader: 'priya.nair@incois.example', course: 'Ocean Data Analysis with Python', moduleOrder: 1, competencies: ['Python for Scientific Computing', 'Ocean Data Analysis'] },
+  { file: 'lib-cyber-hygiene-slides.pdf', title: 'Cyber hygiene for observing networks', type: 'SLIDES', description: 'Common threats to AWS and radar networks, and basic controls.', uploader: 'rahul.deshmukh@incois.example', course: 'Cyber Hygiene for Observing Networks', moduleOrder: 1, competencies: ['Network Security', 'Incident Response'] },
+  { file: 'lib-aws-calibration.mp4', title: 'Calibrating an AWS temperature sensor', type: 'VIDEO', description: 'Comparing a sensor against a reference until drift is within tolerance.', uploader: 'sanjay.iyer@imd.example', course: 'AWS Installation and Field Calibration', moduleOrder: 2, competencies: ['AWS Calibration', 'Data Quality Control'] },
+  { file: 'lib-tsunami-sop.pdf', title: 'Tsunami warning centre SOP (summary)', type: 'DOCUMENT', description: 'The first ten minutes after an earthquake, and how bulletins are updated.', uploader: 'kavita.rao@incois.example', course: 'Tsunami Warning Centre Operations', moduleOrder: 2, competencies: ['Tsunami Early Warning', 'Stakeholder Coordination'] },
+];

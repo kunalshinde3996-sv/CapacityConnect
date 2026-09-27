@@ -9,6 +9,7 @@ import { healthRouter } from './modules/health/health.routes.js';
 import { claimsRouter, competenciesRouter, myClaimsRouter, verificationsRouter } from './modules/competency/claims.routes.js';
 import { subjectsRouter } from './modules/competency/subjects.routes.js';
 import { coursesRouter, myCoursesRouter } from './modules/courses/courses.routes.js';
+import { libraryRouter } from './modules/courses/library.routes.js';
 import { filesRouter } from './modules/storage/files.routes.js';
 import { applicationsRouter } from './modules/users/applications.routes.js';
 import { documentsRouter, profileRouter } from './modules/users/profile.routes.js';
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api/verifications', verificationsRouter);
   app.use('/api/trainer-applications', applicationsRouter);
   app.use('/api/courses', coursesRouter);
+  app.use('/api/library', libraryRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

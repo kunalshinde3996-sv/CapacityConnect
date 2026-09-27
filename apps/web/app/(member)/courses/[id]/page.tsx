@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { CourseMaterials } from '@/components/library/CourseMaterials';
 import { Alert, Badge, Button, Card, levelLabel, Spinner } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -96,6 +97,7 @@ export default function CourseDetailPage() {
               ))}
             </ol>
           </Card>
+          <CourseMaterials courseId={course.id} />
         </div>
         <Card title="Competencies you will build">
           <ul className="space-y-2">
