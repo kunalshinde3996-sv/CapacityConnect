@@ -1,0 +1,25 @@
+# Local PostgreSQL for development and tests.
+# Host port 5433 because 5432 is already used on the dev machine.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: capacity-connect-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: capacity
+      POSTGRES_PASSWORD: capacity
+      POSTGRES_DB: capacity_connect
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the separate test database on first start
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U capacity -d capacity_connect"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

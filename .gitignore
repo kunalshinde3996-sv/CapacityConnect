@@ -29,3 +29,6 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Prisma generated client
+apps/api/src/generated/
