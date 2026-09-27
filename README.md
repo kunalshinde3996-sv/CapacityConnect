@@ -84,11 +84,13 @@ The browser only talks to the Vercel site; Next.js forwards `/api/*` to Render
 2. **Render** (API): *New → Blueprint* → this repo. It reads `render.yaml`. Set
    `DATABASE_URL` (Neon) and `CORS_ORIGINS` (the Vercel URL, once you have it).
    Migrations run automatically on every start.
-3. **Vercel** (web): import this repo, set *Root Directory* to `apps/web`, and add
-   `API_ORIGIN` = the Render URL (e.g. `https://capacity-connect-api.onrender.com`).
-   Also add `NEXT_PUBLIC_API_ORIGIN` = the same Render URL (file uploads and downloads go
-   straight to the API, not through the proxy). Redeploy whenever either changes (both are
-   read at build time).
+3. **Vercel** (web): import this repo, set *Root Directory* to `apps/web`, and add one
+   variable for the **Production** environment: `NEXT_PUBLIC_API_ORIGIN` = the Render URL
+   (e.g. `https://capacity-connect-api-833b.onrender.com`). It is used for the `/api/*` proxy
+   and for file uploads/downloads, which go straight to the API. It is read at build time,
+   so redeploy after changing it. A production build without it fails on purpose (instead
+   of deploying a site whose proxy points at localhost). `API_ORIGIN` is an optional
+   override for the proxy target only.
 4. **Seed the hosted database** once, from your machine (secrets stay in a gitignored file):
 
    ```bash
