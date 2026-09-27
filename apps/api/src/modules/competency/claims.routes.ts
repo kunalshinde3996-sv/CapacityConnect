@@ -31,3 +31,7 @@ verificationsRouter.get('/', controller.queue);
 verificationsRouter.post('/claims/:id', validateBody(reviewSchema), controller.reviewClaim);
 verificationsRouter.post('/certificates/:id', validateBody(reviewSchema), controller.reviewCertificate);
 verificationsRouter.post('/qualifications/:id', validateBody(reviewSchema), controller.reviewQualification);
+
+// /api/skill-gaps?institute=CODE - supply vs demand per competency (admin)
+export const skillGapsRouter = Router();
+skillGapsRouter.get('/', requireAuth, requireRole('ADMIN'), controller.skillGaps);

@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import * as claimsService from './claims.service.js';
+import * as skillGapsService from './skillGaps.service.js';
 import * as verificationService from './verification.service.js';
 
 const param = (req: Request, name: string) => req.params[name] as string;
@@ -35,4 +36,9 @@ export async function reviewCertificate(req: Request, res: Response) {
 
 export async function reviewQualification(req: Request, res: Response) {
   res.json(await verificationService.reviewDocument(req.user!.id, 'qualification', param(req, 'id'), req.body));
+}
+
+export async function skillGaps(req: Request, res: Response) {
+  const institute = typeof req.query.institute === 'string' && req.query.institute ? req.query.institute : undefined;
+  res.json(await skillGapsService.getSkillGaps(institute));
 }

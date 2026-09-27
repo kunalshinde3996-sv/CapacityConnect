@@ -12,7 +12,7 @@ import {
 } from './modules/assessments/assessments.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
-import { claimsRouter, competenciesRouter, myClaimsRouter, verificationsRouter } from './modules/competency/claims.routes.js';
+import { claimsRouter, competenciesRouter, myClaimsRouter, skillGapsRouter, verificationsRouter } from './modules/competency/claims.routes.js';
 import { subjectsRouter } from './modules/competency/subjects.routes.js';
 import { coursesRouter, myCoursesRouter } from './modules/courses/courses.routes.js';
 import { libraryRouter } from './modules/courses/library.routes.js';
@@ -48,6 +48,7 @@ export function createApp() {
   app.use('/api/verifications', verificationsRouter);
   app.use('/api/trainer-applications', applicationsRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/skill-gaps', skillGapsRouter);
   app.use('/api/courses/:courseId/assessments', courseAssessmentsRouter);
   app.use('/api/courses/:courseId/progress', courseProgressRouter);
   app.use('/api/courses', coursesRouter);

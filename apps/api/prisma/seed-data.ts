@@ -480,3 +480,13 @@ export const libraryItems: SeedLibraryItem[] = [
   { file: 'lib-aws-calibration.mp4', title: 'Calibrating an AWS temperature sensor', type: 'VIDEO', description: 'Comparing a sensor against a reference until drift is within tolerance.', uploader: 'sanjay.iyer@imd.example', course: 'AWS Installation and Field Calibration', moduleOrder: 2, competencies: ['AWS Calibration', 'Data Quality Control'] },
   { file: 'lib-tsunami-sop.pdf', title: 'Tsunami warning centre SOP (summary)', type: 'DOCUMENT', description: 'The first ten minutes after an earthquake, and how bulletins are updated.', uploader: 'kavita.rao@incois.example', course: 'Tsunami Warning Centre Operations', moduleOrder: 2, competencies: ['Tsunami Early Warning', 'Stakeholder Coordination'] },
 ];
+
+// Organisation-wide target level per competency (skill-gap view). Default: 2 (Working).
+// Operationally critical competencies are expected at 3 (Proficient).
+export const competencyTargets: Record<string, number> = {
+  'Radar Meteorology': 3,
+  'AWS Calibration': 3,
+  'Tsunami Early Warning': 3,
+  'Ocean Data Analysis': 3,
+};
+export const DEFAULT_TARGET_LEVEL = 2;

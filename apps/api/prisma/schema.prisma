@@ -102,6 +102,16 @@ enum AnnouncementType {
   NEW_CONTENT
 }
 
+enum NotificationType {
+  ENROLMENT_CONFIRMED
+  NEW_ASSESSMENT
+  DEADLINE_SOON
+  ACCOUNT_APPROVED
+  ACCOUNT_REJECTED
+  VERIFICATION_RESULT
+  GENERAL
+}
+
 // ─────────────────────────────────────────────────────────────
 // Organisation and users
 // ─────────────────────────────────────────────────────────────
@@ -310,6 +320,8 @@ model Competency {
   category    CompetencyCategory
   description String
   isActive    Boolean            @default(true) // retire instead of delete, so history stays valid
+  // Organisation-wide level trainees should reach (drives the skill-gap view)
+  targetLevel Int                @default(2)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -624,13 +636,16 @@ model Announcement {
 
 // Private in-app message to one user (also emailed where relevant).
 model Notification {
-  id        String    @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
   title     String
   body      String
   link      String? // in-app path to open, e.g. /assessments/abc
   readAt    DateTime?
-  createdAt DateTime  @default(now())
+  createdAt DateTime         @default(now())
+  type      NotificationType @default(GENERAL)
+  // e.g. "deadline:<assessmentId>:<userId>": the same reminder is never created twice
+  dedupeKey String?          @unique
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

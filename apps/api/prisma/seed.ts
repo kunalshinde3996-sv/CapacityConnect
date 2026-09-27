@@ -19,7 +19,9 @@ import { assessments as seedAssessmentList } from './seed-assessments.js';
 import { courseFeedback } from './seed-feedback.js';
 import {
   competencies,
+  competencyTargets,
   courses,
+  DEFAULT_TARGET_LEVEL,
   DEMO_PASSWORD,
   documentFiles,
   institutes,
@@ -106,10 +108,11 @@ async function main() {
   // ── Competency framework ──────────────────────────────────
   const competencyIds = new Map<string, string>();
   for (const c of competencies) {
+    const targetLevel = competencyTargets[c.name] ?? DEFAULT_TARGET_LEVEL;
     const row = await prisma.competency.upsert({
       where: { name: c.name },
-      update: { category: c.category, description: c.description, isActive: true },
-      create: c,
+      update: { category: c.category, description: c.description, isActive: true, targetLevel },
+      create: { ...c, targetLevel },
     });
     competencyIds.set(c.name, row.id);
   }
